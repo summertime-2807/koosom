@@ -44,7 +44,7 @@ const add = (e, km) => {
   byId.set(e._id, cur)
 }
 
-for (const e of await search({ startDate })) add(e)
+// หมายเหตุ: ค้นแบบไม่ใส่ตัวกรองระยะ API จะ error จึงค้นทีละประเภทระยะแล้วรวมกัน
 for (const [flag, km] of DIST) {
   for (const e of await search({ startDate, [flag]: true })) add(e, km)
   await new Promise((r) => setTimeout(r, 1500)) // สุภาพกับเซิร์ฟเวอร์
