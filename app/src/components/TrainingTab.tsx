@@ -3,7 +3,6 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { CalendarRace, FuelingSummary, PacingResult, RacePlan, RouteAnalysis, TrainingInput, TrainingState, WeatherYear, Workout, WorkoutType } from '../types/race'
 import { Card, DurationInput, Field, NumInput, Segmented, Stat } from './ui'
 import Markdown from './Markdown'
-import { RACE_CALENDAR } from '../data/raceCalendar'
 import { COURSE_TH, getRaceProfile, startTimeFor } from '../data/raceProfiles'
 import { DOW_TH, PHASE_TH, computeTrainingPlan, daysBetween } from '../engine/trainingEngine'
 import { fetchRaceWeather, summarizeWeather } from '../services/weatherHistory'
@@ -17,6 +16,7 @@ interface Props {
   route: RouteAnalysis
   pacing: PacingResult
   fueling: FuelingSummary
+  baseRaces: CalendarRace[]
   customRaces: CalendarRace[]
   onTraining: (t: TrainingState) => void
   onRaceLink: (raceId: string | undefined, startTime?: string) => void
@@ -60,11 +60,14 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-export default function TrainingTab({ plan, route, pacing, fueling, customRaces, onTraining, onRaceLink, toast }: Props) {
+export default function TrainingTab({ plan, route, pacing, fueling, baseRaces, customRaces, onTraining, onRaceLink, toast }: Props) {
   const state: TrainingState = plan.training ?? { input: DEFAULT_TRAINING }
   const input = state.input
   const setInput = (p: Partial<TrainingInput>) => onTraining({ ...state, input: { ...input, ...p } })
-  const allRaces = useMemo(() => [...RACE_CALENDAR, ...customRaces], [customRaces])
+  const allRaces = useMemo(() => {
+    const today = todayISO()
+    return [...baseRaces, ...customRaces].filter((r) => r.id === plan.meta.raceId || !r.date || r.date >= today)
+  }, [baseRaces, customRaces, plan.meta.raceId])
   const race = allRaces.find((r) => r.id === plan.meta.raceId)
   const profile = useMemo(() => getRaceProfile(race, plan.meta.date), [race, plan.meta.date])
   const distKm = route.totalDistanceKm

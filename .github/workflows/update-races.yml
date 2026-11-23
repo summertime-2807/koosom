@@ -1,0 +1,40 @@
+name: อัปเดตงานวิ่งจาก race.thai.run
+
+on:
+  schedule:
+    - cron: '17 20 * * *' # ทุกวัน 03:17 เวลาไทย
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/fetch-races.mjs
+      - .github/workflows/update-races.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-races
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: ดึงรายการงาน
+        run: node scripts/fetch-races.mjs
+      - name: Commit ถ้ามีการเปลี่ยนแปลง
+        run: |
+          if git diff --quiet -- races.json && git ls-files --error-unmatch races.json >/dev/null 2>&1; then
+            echo "ไม่มีอะไรเปลี่ยน"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git add races.json
+          git commit -m "อัปเดตงานวิ่ง $(date -u +%Y-%m-%d)"
+          git push

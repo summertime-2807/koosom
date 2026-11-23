@@ -41,3 +41,42 @@ export const RACE_CALENDAR: CalendarRace[] = [
   { id: 'tr_cyp27', name: 'Chaiyaphum Marathon – The First Marathon', dateText: 'ดูวันที่บนเว็บ', location: 'ชัยภูมิ', organizer: 'Runvegas Series', distancesKm: [], source: TR, url: THAIRUN_URL },
   { id: 'rama8_27', name: 'Rama 8 Half Marathon', date: '2027-05-16', location: 'กรุงเทพฯ', distancesKm: [5, 10, 21.1], source: AH, url: AH_TH },
 ]
+
+// ── ข้อมูลอัปเดตอัตโนมัติ (races.json สร้างโดย GitHub Actions ทุกวัน) ──
+export interface RemoteCalendar {
+  updatedAt: string
+  races: CalendarRace[]
+}
+
+export async function loadRemoteCalendar(signal?: AbortSignal): Promise<RemoteCalendar | null> {
+  try {
+    const res = await fetch('./races.json', { cache: 'no-cache', signal })
+    if (!res.ok) return null
+    const j = (await res.json()) as Partial<RemoteCalendar>
+    if (!Array.isArray(j.races) || !j.updatedAt) return null
+    const races = j.races.filter((r): r is CalendarRace => !!r && typeof r.id === 'string' && typeof r.name === 'string' && Array.isArray(r.distancesKm))
+    return { updatedAt: j.updatedAt, races }
+  } catch {
+    return null
+  }
+}
+
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/20\d\d|25\d\d/g, '')
+    .replace(/half marathon|marathon|มาราธอน|run|รัน/g, '')
+    .replace(/[^\p{L}\p{N}]+/gu, '')
+
+/** รวมข้อมูลชุดเริ่มต้นกับข้อมูลอัปเดต: งานที่มีข้อมูลสนามละเอียดเก็บไว้ งานซ้ำตัดออก */
+export function mergeCalendar(base: CalendarRace[], remote: CalendarRace[] | undefined): CalendarRace[] {
+  if (!remote?.length) return base
+  const keep = base.filter((r) => r.source !== 'race.thai.run')
+  const keys = keep.map((r) => ({ k: norm(r.name), month: r.date?.slice(0, 7) }))
+  const fresh = remote.filter((r) => {
+    const k = norm(r.name)
+    if (!k) return true
+    return !keys.some((x) => x.k && (x.k === k || ((x.k.includes(k) || k.includes(x.k)) && Math.min(x.k.length, k.length) >= 6)) && (!x.month || !r.date || x.month === r.date.slice(0, 7)))
+  })
+  return [...keep, ...fresh]
+}

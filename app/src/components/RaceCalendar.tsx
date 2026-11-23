@@ -1,10 +1,13 @@
 import { useMemo, useState } from 'react'
 import type { CalendarRace } from '../types/race'
-import { CALENDAR_UPDATED, RACE_CALENDAR, THAIRUN_URL } from '../data/raceCalendar'
+import { CALENDAR_UPDATED, THAIRUN_URL } from '../data/raceCalendar'
 import { Card, Field, Segmented } from './ui'
 import { TH_MONTHS_FULL, fmtThaiDate, uid } from '../lib/time'
 
 interface Props {
+  baseRaces: CalendarRace[]
+  /** เวลาอัปเดตล่าสุดจาก race.thai.run (ISO) ถ้าโหลด races.json ได้ */
+  remoteUpdatedAt?: string
   customRaces: CalendarRace[]
   onCustomRaces: (r: CalendarRace[]) => void
   onPlan: (race: CalendarRace, km: number) => void
@@ -12,14 +15,14 @@ interface Props {
 
 const distLabel = (km: number) => (km >= 42 && km < 43 ? 'มาราธอน' : km >= 21 && km < 21.2 ? 'ฮาล์ฟ' : `${km}K`)
 
-export default function RaceCalendar({ customRaces, onCustomRaces, onPlan }: Props) {
+export default function RaceCalendar({ baseRaces, remoteUpdatedAt, customRaces, onCustomRaces, onPlan }: Props) {
   const [filter, setFilter] = useState<'all' | '10' | '21' | '42'>('all')
   const [showPast, setShowPast] = useState(false)
   const [adding, setAdding] = useState(false)
   const [form, setForm] = useState({ name: '', date: '', location: '', dists: '10, 21.1', url: '' })
   const today = new Date().toISOString().slice(0, 10)
 
-  const all = useMemo(() => [...RACE_CALENDAR, ...customRaces], [customRaces])
+  const all = useMemo(() => [...baseRaces, ...customRaces], [baseRaces, customRaces])
   const filtered = all.filter((r) => {
     if (!showPast && r.date && r.date < today) return false
     if (filter === 'all') return true
@@ -102,7 +105,13 @@ export default function RaceCalendar({ customRaces, onCustomRaces, onPlan }: Pro
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={showPast} onChange={(e) => setShowPast(e.target.checked)} /> แสดงงานที่ผ่านมา
             </label>
-            <span>ข้อมูล ณ {fmtThaiDate(CALENDAR_UPDATED)}</span>
+            {remoteUpdatedAt ? (
+              <span className="text-green-400/80">
+                ● อัปเดตอัตโนมัติ · {new Date(remoteUpdatedAt).toLocaleString('th-TH', { dateStyle: 'medium', timeStyle: 'short' })}
+              </span>
+            ) : (
+              <span>ข้อมูล ณ {fmtThaiDate(CALENDAR_UPDATED)}</span>
+            )}
           </div>
         </div>
 
@@ -117,7 +126,10 @@ export default function RaceCalendar({ customRaces, onCustomRaces, onPlan }: Pro
                   <li key={r.id} className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="font-medium leading-snug">{r.name}</div>
+                        <div className="font-medium leading-snug">
+                          {r.name}
+                          {r.regOpen && <span className="ml-1.5 align-middle text-[10px] font-semibold text-green-400">● เปิดรับสมัคร</span>}
+                        </div>
                         <div className="mt-0.5 text-xs text-zinc-400">
                           {r.dateText ?? (r.date ? fmtThaiDate(r.date) : '')}
                           {r.location && ` · ${r.location}`}

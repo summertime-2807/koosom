@@ -22,6 +22,8 @@ import Archive from './components/Archive'
 import RaceCalendar from './components/RaceCalendar'
 import TrainingTab from './components/TrainingTab'
 import { getRaceProfile, startTimeFor } from './data/raceProfiles'
+import { RACE_CALENDAR, loadRemoteCalendar, mergeCalendar } from './data/raceCalendar'
+import type { RemoteCalendar } from './data/raceCalendar'
 
 type Tab = 'plan' | 'aid' | 'splits' | 'train' | 'export' | 'races' | 'archive'
 const TABS: { id: Tab; label: string; icon: string }[] = [
@@ -46,6 +48,13 @@ export default function App() {
   const [customRaces, setCustomRaces] = useState<CalendarRace[]>([])
   const [tab, setTabState] = useState<Tab>(tabFromHash)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [remote, setRemote] = useState<RemoteCalendar | null>(null)
+  const baseRaces = useMemo(() => mergeCalendar(RACE_CALENDAR, remote?.races), [remote])
+  useEffect(() => {
+    const ctl = new AbortController()
+    loadRemoteCalendar(ctl.signal).then((r) => r && setRemote(r))
+    return () => ctl.abort()
+  }, [])
   const toastTimer = useRef<number | undefined>(undefined)
 
   const toast = useCallback((m: string) => {
@@ -243,6 +252,7 @@ export default function App() {
               route={route}
               pacing={pacing}
               fueling={fueling}
+              baseRaces={baseRaces}
               customRaces={customRaces}
               onTraining={(training) => update({ training })}
               onRaceLink={(raceId, startTime) => update({ meta: { ...plan.meta, raceId, startTime: startTime ?? plan.meta.startTime } })}
@@ -254,6 +264,8 @@ export default function App() {
 
           {tab === 'races' && (
             <RaceCalendar
+              baseRaces={baseRaces}
+              remoteUpdatedAt={remote?.updatedAt}
               customRaces={customRaces}
               onCustomRaces={async (r) => {
                 setCustomRaces(r)

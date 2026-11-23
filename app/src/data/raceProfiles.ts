@@ -145,18 +145,73 @@ export const RACE_PROFILES: Record<string, RaceProfile> = {
   },
 }
 
-/** ค่าเริ่มต้นตามจังหวัด/ภูมิภาคเมื่อไม่มีข้อมูลสนาม */
-const PLACE_COORDS: [RegExp, [number, number], 'central' | 'north' | 'northeast' | 'south' | 'east' | 'abroad'][] = [
-  [/เชียงใหม่/, [18.79, 98.99], 'north'],
-  [/ภูเก็ต|กะทู้/, [7.89, 98.39], 'south'],
-  [/หนองคาย|โพธิ์ตาก/, [17.86, 102.41], 'northeast'],
-  [/สกลนคร/, [17.16, 104.15], 'northeast'],
-  [/นครพนม/, [17.4, 104.78], 'northeast'],
-  [/ชัยภูมิ/, [15.81, 102.03], 'northeast'],
-  [/พิจิตร/, [16.44, 100.35], 'central'],
-  [/ชลบุรี|บางแสน|ศรีราชา/, [13.17, 100.93], 'east'],
-  [/โฮจิมินห์|เวียดนาม/, [10.78, 106.7], 'abroad'],
+/** พิกัดจังหวัด (ไทย/อังกฤษ) สำหรับดึงอากาศย้อนหลัง */
+const PLACE_COORDS: [RegExp, [number, number]][] = [
+  [/เชียงใหม่|chiang ?mai/i, [18.79, 98.99]],
+  [/เชียงราย|chiang ?rai/i, [19.91, 99.83]],
+  [/แม่ฮ่องสอน|mae hong son/i, [19.3, 97.97]],
+  [/ลำปาง|lampang/i, [18.29, 99.49]],
+  [/ลำพูน|lamphun/i, [18.58, 99.01]],
+  [/น่าน|nan\b/i, [18.78, 100.78]],
+  [/พะเยา|phayao/i, [19.17, 99.9]],
+  [/แพร่|phrae/i, [18.14, 100.14]],
+  [/ตาก|\btak\b/i, [16.88, 99.13]],
+  [/สุโขทัย|sukhothai/i, [17.01, 99.82]],
+  [/พิษณุโลก|phitsanulok/i, [16.82, 100.26]],
+  [/เพชรบูรณ์|phetchabun/i, [16.42, 101.16]],
+  [/พิจิตร|phichit/i, [16.44, 100.35]],
+  [/นครสวรรค์|nakhon sawan/i, [15.7, 100.14]],
+  [/ภูเก็ต|กะทู้|phuket|kathu/i, [7.89, 98.39]],
+  [/กระบี่|krabi/i, [8.09, 98.91]],
+  [/พังงา|phang ?nga/i, [8.45, 98.53]],
+  [/สุราษฎร์|surat thani|samui/i, [9.14, 99.33]],
+  [/นครศรีธรรมราช|nakhon si thammarat/i, [8.43, 99.96]],
+  [/สงขลา|หาดใหญ่|songkhla|hat ?yai/i, [7.01, 100.47]],
+  [/ตรัง|trang/i, [7.56, 99.61]],
+  [/ชุมพร|chumphon/i, [10.49, 99.18]],
+  [/ประจวบ|หัวหิน|ปราณบุรี|prachuap|hua ?hin|pran ?buri/i, [12.57, 99.96]],
+  [/เพชรบุรี|ชะอำ|phetchaburi|cha-?am/i, [13.11, 99.94]],
+  [/กาญจนบุรี|kanchanaburi/i, [14.02, 99.53]],
+  [/ราชบุรี|ratchaburi/i, [13.54, 99.82]],
+  [/นครปฐม|nakhon pathom/i, [13.82, 100.06]],
+  [/อยุธยา|ayutthaya/i, [14.35, 100.57]],
+  [/สระบุรี|saraburi/i, [14.53, 100.91]],
+  [/ลพบุรี|lop ?buri/i, [14.8, 100.65]],
+  [/นครนายก|nakhon nayok/i, [14.2, 101.21]],
+  [/ปราจีนบุรี|prachin/i, [14.05, 101.37]],
+  [/ชลบุรี|บางแสน|ศรีราชา|พัทยา|chon ?buri|bang ?saen|sri ?racha|pattaya/i, [13.17, 100.93]],
+  [/ระยอง|rayong/i, [12.68, 101.27]],
+  [/จันทบุรี|chanthaburi/i, [12.61, 102.1]],
+  [/ตราด|trat/i, [12.24, 102.51]],
+  [/นครราชสีมา|โคราช|nakhon ratchasima|korat|khao ?yai/i, [14.97, 102.1]],
+  [/ขอนแก่น|khon ?kaen/i, [16.44, 102.83]],
+  [/อุดรธานี|udon/i, [17.41, 102.79]],
+  [/หนองคาย|โพธิ์ตาก|nong ?khai/i, [17.88, 102.74]],
+  [/เลย|เชียงคาน|\bloei\b|chiang ?khan/i, [17.49, 101.72]],
+  [/สกลนคร|sakon nakhon/i, [17.16, 104.15]],
+  [/นครพนม|nakhon phanom/i, [17.4, 104.78]],
+  [/อุบล|ubon/i, [15.24, 104.85]],
+  [/บุรีรัมย์|buri ?ram/i, [14.99, 103.1]],
+  [/สุรินทร์|surin/i, [14.88, 103.49]],
+  [/ชัยภูมิ|chaiyaphum/i, [15.81, 102.03]],
+  [/มหาสารคาม|maha sarakham/i, [16.18, 103.3]],
+  [/ร้อยเอ็ด|roi ?et/i, [16.05, 103.65]],
+  [/กาฬสินธุ์|kalasin/i, [16.43, 103.51]],
+  [/โฮจิมินห์|ho chi minh|hcmc|saigon/i, [10.78, 106.7]],
+  [/ดานัง|da ?nang/i, [16.05, 108.2]],
+  [/ฮานอย|hanoi/i, [21.03, 105.85]],
+  [/กรุงเทพ|bangkok|นนทบุรี|nonthaburi|ปทุมธานี|pathum thani|สมุทรปราการ|samut prakan/i, [13.7563, 100.5018]],
 ]
+
+type Region = 'central' | 'north' | 'northeast' | 'south' | 'east' | 'abroad'
+function regionOf([lat, lon]: [number, number]): Region {
+  if (lon > 105.7 || lon < 97.3 || lat > 20.6 || lat < 5.5) return 'abroad'
+  if (lat < 11) return 'south'
+  if (lat > 17.2 && lon < 101.3) return 'north'
+  if (lat > 14.3 && lon > 101.3) return 'northeast'
+  if (lat < 14 && lon > 100.8) return 'east'
+  return 'central'
+}
 
 /** ภูมิอากาศช่วงเช้ามืดโดยประมาณ (°C) ราย เดือน 1–12 */
 const DAWN_TEMP: Record<string, number[]> = {
@@ -177,9 +232,9 @@ export function guessCourse(race: CalendarRace): CourseType {
 export function getRaceProfile(race: CalendarRace | undefined, fallbackDate?: string): RaceProfile {
   if (race && RACE_PROFILES[race.id]) return RACE_PROFILES[race.id]
   const loc = race?.location ?? ''
-  const hit = PLACE_COORDS.find(([re]) => re.test(loc))
+  const hit = PLACE_COORDS.find(([re]) => re.test(loc)) ?? PLACE_COORDS.find(([re]) => re.test(race?.name ?? ''))
   const [lat, lon] = hit?.[1] ?? BKK
-  const region = hit?.[2] ?? 'central'
+  const region = regionOf([lat, lon])
   const date = race?.date ?? fallbackDate
   const month = date ? Number(date.slice(5, 7)) : 12
   const temp = DAWN_TEMP[region][month - 1]

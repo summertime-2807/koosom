@@ -216,6 +216,8 @@ export interface CalendarRace {
   source: string
   url: string
   custom?: boolean
+  /** เปิดรับสมัครอยู่ (จาก race.thai.run) */
+  regOpen?: boolean
 }
 
 export interface BackupFile {
