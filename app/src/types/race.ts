@@ -263,6 +263,25 @@ export interface Workout {
   km: number
   pace?: string
   tags?: string[]
+  /** โครงสร้างสำหรับส่งเข้านาฬิกา */
+  struct?: WorkoutStruct
+}
+
+export interface WorkoutStruct {
+  wuKm?: number
+  cdKm?: number
+  /** ช่วงหลักแบบเป็นเซ็ต */
+  reps?: number
+  repKm?: number
+  repSec?: number
+  recSec?: number
+  /** ช่วงหลักต่อเนื่อง */
+  blockKm?: number
+  blockMin?: number
+  /** เป้าหมายช่วงหลัก */
+  target: 'easy' | 'long' | 'tempo' | 'interval' | 'hill' | 'race' | 'marathon'
+  /** วิ่งยาวที่ปิดท้ายด้วยเพซแข่ง (กม.) */
+  finishRpKm?: number
 }
 
 export type Phase = 'base' | 'build' | 'peak' | 'taper' | 'race'

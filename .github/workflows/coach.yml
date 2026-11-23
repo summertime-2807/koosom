@@ -1,0 +1,44 @@
+name: โค้ชอัตโนมัติ (ปรับตาราง + สรุป)
+
+on:
+  schedule:
+    - cron: '7 14 * * *' # 21:07 เวลาไทย — สรุปและปรับตาราง
+    - cron: '7 1 * * *'  # 08:07 เวลาไทย — เช็กค่าร่างกายตอนเช้า
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'night หรือ morning'
+        default: night
+
+permissions:
+  contents: read
+
+concurrency:
+  group: coach
+  cancel-in-progress: false
+
+jobs:
+  coach:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - name: รันโค้ช
+        working-directory: app
+        env:
+          INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
+          INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            if [ "${{ github.event.schedule }}" = "7 1 * * *" ]; then MODE=morning; else MODE=night; fi
+          fi
+          npx tsx scripts/coach.ts "$MODE"

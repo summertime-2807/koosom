@@ -157,8 +157,8 @@ function quality(role: 'q1' | 'q2', phase: Phase, wIdx: number, ctx: Ctx): Omit<
   const wu = 2 // วอร์มอัพ/คูลดาวน์ รวม ~4 กม.
   if (phase === 'base') {
     if (role === 'q1' && traits.hills)
-      return { type: 'hill', title: 'ขึ้นเนิน/สะพาน', detail: `วอร์ม ${wu} กม. → ขึ้นเนินหรือสะพาน 6–8 × 60 วิ (แรงแต่คุมฟอร์ม) เดินลงพัก → คูลดาวน์ ${wu} กม.`, km: 7, tags: ['สนามมีสะพาน/เนิน'] }
-    return { type: 'easy', title: 'วิ่งง่าย + สไตรด์', detail: `วิ่งสบาย ๆ แล้วปิดท้ายด้วยสไตรด์ 6 × 20 วิ`, km: 6, pace: paceRange(paces.easy) }
+      return { type: 'hill', title: 'ขึ้นเนิน/สะพาน', detail: `วอร์ม ${wu} กม. → ขึ้นเนินหรือสะพาน 6–8 × 60 วิ (แรงแต่คุมฟอร์ม) เดินลงพัก → คูลดาวน์ ${wu} กม.`, km: 7, tags: ['สนามมีสะพาน/เนิน'], struct: { wuKm: wu, cdKm: wu, reps: 8, repSec: 60, recSec: 90, target: 'hill' } }
+    return { type: 'easy', title: 'วิ่งง่าย + สไตรด์', detail: `วิ่งสบาย ๆ แล้วปิดท้ายด้วยสไตรด์ 6 × 20 วิ`, km: 6, pace: paceRange(paces.easy), struct: { target: 'easy' } }
   }
   if (phase === 'taper' || phase === 'race') {
     return {
@@ -167,12 +167,13 @@ function quality(role: 'q1' | 'q2', phase: Phase, wIdx: number, ctx: Ctx): Omit<
       detail: `วอร์ม ${wu} กม. → ${fm ? '3 × 1.6 กม.' : '3 × 1 กม.'} ที่เพซแข่ง พัก 2 นาที → คูลดาวน์`,
       km: fm ? 9 : 7,
       pace: fmtPace(paces.goal),
+      struct: { wuKm: wu, cdKm: wu, reps: 3, repKm: fm ? 1.6 : 1, recSec: 120, target: 'race' },
     }
   }
   // build / peak
   if (role === 'q1') {
     if (traits.hills && wIdx % 3 === 0)
-      return { type: 'hill', title: 'วิ่งซ้ำบนสะพาน', detail: `วอร์ม ${wu} กม. → ขึ้นสะพาน/เนิน 8–10 × 90 วิ ที่แรงระดับเทมโป วิ่งเบาลง → คูลดาวน์`, km: 9, tags: ['จำลองสะพานในสนาม'] }
+      return { type: 'hill', title: 'วิ่งซ้ำบนสะพาน', detail: `วอร์ม ${wu} กม. → ขึ้นสะพาน/เนิน 8–10 × 90 วิ ที่แรงระดับเทมโป วิ่งเบาลง → คูลดาวน์`, km: 9, tags: ['จำลองสะพานในสนาม'], struct: { wuKm: wu, cdKm: wu, reps: 9, repSec: 90, recSec: 90, target: 'hill' } }
     const reps = phase === 'peak' ? 6 : 5
     return {
       type: 'interval',
@@ -180,6 +181,7 @@ function quality(role: 'q1' | 'q2', phase: Phase, wIdx: number, ctx: Ctx): Omit<
       detail: `วอร์ม ${wu} กม. → ${reps} × 1 กม. พักจ๊อก 2–3 นาที → คูลดาวน์ ${wu} กม.`,
       km: wu * 2 + reps + reps * 0.4,
       pace: fmtPace(paces.interval),
+      struct: { wuKm: wu, cdKm: wu, reps, repKm: 1, recSec: 150, target: 'interval' },
     }
   }
   // q2
@@ -191,10 +193,11 @@ function quality(role: 'q1' | 'q2', phase: Phase, wIdx: number, ctx: Ctx): Omit<
       detail: fm ? `วอร์ม ${wu} กม. → ${block} กม. ที่เพซมาราธอน → คูลดาวน์` : `วอร์ม ${wu} กม. → ${distKm > 15 ? '2 × 4 กม.' : '4 × 1 กม.'} ที่เพซแข่ง พัก 2 นาที → คูลดาวน์`,
       km: wu * 2 + block,
       pace: fmtPace(fm ? paces.marathon : paces.goal),
+      struct: fm ? { wuKm: wu, cdKm: wu, blockKm: block, target: 'marathon' } : distKm > 15 ? { wuKm: wu, cdKm: wu, reps: 2, repKm: 4, recSec: 120, target: 'race' } : { wuKm: wu, cdKm: wu, reps: 4, repKm: 1, recSec: 120, target: 'race' },
     }
   }
   const mins = phase === 'build' ? 20 : 25
-  return { type: 'tempo', title: 'เทมโป', detail: `วอร์ม ${wu} กม. → ${mins} นาทีต่อเนื่องที่เพซเทมโป (เหนื่อยแต่คุมได้) → คูลดาวน์`, km: wu * 2 + mins / (paces.threshold / 60), pace: fmtPace(paces.threshold) }
+  return { type: 'tempo', title: 'เทมโป', detail: `วอร์ม ${wu} กม. → ${mins} นาทีต่อเนื่องที่เพซเทมโป (เหนื่อยแต่คุมได้) → คูลดาวน์`, km: wu * 2 + mins / (paces.threshold / 60), pace: fmtPace(paces.threshold), struct: { wuKm: wu, cdKm: wu, blockMin: mins, target: 'tempo' } }
 }
 
 export interface TrainingTarget {
@@ -293,8 +296,8 @@ export function computeTrainingPlan(input: TrainingInput, target: TrainingTarget
       const raceDate = target.raceDate
       const pre = [
         { off: -5, w: quality('q1', 'race', i, ctx) },
-        { off: -3, w: { type: 'easy' as WorkoutType, title: 'วิ่งง่าย + สไตรด์', detail: 'วิ่งสบาย ๆ + สไตรด์ 4 × 20 วิ', km: distKm > 15 ? 6 : 5, pace: paceRange(paces.easy) } },
-        { off: -1, w: { type: 'shakeout' as WorkoutType, title: 'เขย่าขา', detail: 'จ๊อกเบา ๆ 15–20 นาที เตรียมของ ติดเบอร์ เช็กแผนเจล นอนเร็ว', km: 3, pace: paceRange(paces.easy) } },
+        { off: -3, w: { type: 'easy' as WorkoutType, title: 'วิ่งง่าย + สไตรด์', detail: 'วิ่งสบาย ๆ + สไตรด์ 4 × 20 วิ', km: distKm > 15 ? 6 : 5, pace: paceRange(paces.easy), struct: { target: 'easy' as const } } },
+        { off: -1, w: { type: 'shakeout' as WorkoutType, title: 'เขย่าขา', detail: 'จ๊อกเบา ๆ 15–20 นาที เตรียมของ ติดเบอร์ เช็กแผนเจล นอนเร็ว', km: 3, pace: paceRange(paces.easy), struct: { target: 'easy' as const } } },
       ]
       for (const p of pre) {
         const date = addDays(raceDate, p.off)
@@ -322,6 +325,7 @@ export function computeTrainingPlan(input: TrainingInput, target: TrainingTarget
         km: longKm,
         pace: paceRange(paces.long),
         tags: [],
+        struct: { target: 'long', finishRpKm: phase === 'peak' && distKm > 15 ? (distKm > 30 ? 8 : 4) : undefined },
       }
       if (traits.earlyStart && i >= nWeeks - 5 && (phase === 'peak' || phase === 'build' || phase === 'taper') && i % 2 === 0)
         longW.tags!.push(`เริ่ม ${traits.startTime} เหมือนวันแข่ง`)
@@ -334,9 +338,9 @@ export function computeTrainingPlan(input: TrainingInput, target: TrainingTarget
         if (slot.role === 'long') planned.push({ off: slot.off, w: longW })
         else if (slot.role === 'q1') planned.push({ off: slot.off, w: quality('q1', phase, i, ctx) })
         else if (slot.role === 'q2') {
-          if (phase === 'base' || phase === 'taper' || cutback) planned.push({ off: slot.off, w: { type: 'easy', title: 'วิ่งง่าย', detail: 'วิ่งสบาย ๆ', km: 0, pace: paceRange(paces.easy) } })
+          if (phase === 'base' || phase === 'taper' || cutback) planned.push({ off: slot.off, w: { type: 'easy', title: 'วิ่งง่าย', detail: 'วิ่งสบาย ๆ', km: 0, pace: paceRange(paces.easy), struct: { target: 'easy' } } })
           else planned.push({ off: slot.off, w: quality('q2', phase, i, ctx) })
-        } else planned.push({ off: slot.off, w: { type: 'easy', title: 'วิ่งง่าย', detail: traits.hot && i >= nWeeks - 5 ? 'วิ่งสบาย ๆ ช่วงอากาศอุ่น (ฝึกทนร้อน)' : 'วิ่งสบาย ๆ', km: 0, pace: paceRange(paces.easy) } })
+        } else planned.push({ off: slot.off, w: { type: 'easy', title: 'วิ่งง่าย', detail: traits.hot && i >= nWeeks - 5 ? 'วิ่งสบาย ๆ ช่วงอากาศอุ่น (ฝึกทนร้อน)' : 'วิ่งสบาย ๆ', km: 0, pace: paceRange(paces.easy), struct: { target: 'easy' } } })
       }
       if (cutback) {
         for (const p of planned) if (p.w.type !== 'long' && p.w.type !== 'easy') p.w = { ...p.w, km: p.w.km * 0.8, title: p.w.title + ' (เบาลง)' }

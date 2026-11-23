@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": { "types": ["node"], "noEmit": true },
+  "include": ["scripts/coach.ts", "src/coach", "src/engine/trainingEngine.ts", "src/lib", "src/types"],
+  "exclude": []
+}

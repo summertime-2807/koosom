@@ -3,6 +3,7 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import type { CalendarRace, FuelingSummary, PacingResult, RacePlan, RouteAnalysis, TrainingInput, TrainingState, WeatherYear, Workout, WorkoutType } from '../types/race'
 import { Card, DurationInput, Field, NumInput, Segmented, Stat } from './ui'
 import Markdown from './Markdown'
+import CoachPanel from './CoachPanel'
 import { COURSE_TH, getRaceProfile, startTimeFor } from '../data/raceProfiles'
 import { DOW_TH, PHASE_TH, computeTrainingPlan, daysBetween } from '../engine/trainingEngine'
 import { fetchRaceWeather, summarizeWeather } from '../services/weatherHistory'
@@ -170,6 +171,34 @@ export default function TrainingTab({ plan, route, pacing, fueling, baseRaces, c
     }
   }
 
+  const [view, setView] = useState<'plan' | 'coach'>(() => {
+    try {
+      return (localStorage.getItem('rp.trainView') as 'plan' | 'coach') || 'plan'
+    } catch {
+      return 'plan'
+    }
+  })
+  const switchView = (v: 'plan' | 'coach') => {
+    setView(v)
+    try {
+      localStorage.setItem('rp.trainView', v)
+    } catch {
+      /* ignore */
+    }
+  }
+  const viewSwitch = (
+    <div className="mb-4 max-w-md">
+      <Segmented
+        value={view}
+        onChange={switchView}
+        options={[
+          { value: 'plan', label: '📅 ตารางซ้อม' },
+          { value: 'coach', label: '⌚ โค้ช & Garmin' },
+        ]}
+      />
+    </div>
+  )
+
   const fz = trainingPlan.feasibility
   const currentWeekIdx = trainingPlan.weeks.findIndex((w) => daysBetween(w.startDate, today) < 7)
   const [open, setOpen] = useState<Set<number>>(() => new Set([0, 1]))
@@ -183,6 +212,14 @@ export default function TrainingTab({ plan, route, pacing, fueling, baseRaces, c
     return '﻿' + rows.map((r) => r.map(esc).join(',')).join('\n')
   }
 
+  if (view === 'coach')
+    return (
+      <div>
+        {viewSwitch}
+        <CoachPanel plan={plan} trainingPlan={trainingPlan} distKm={distKm} toast={toast} />
+      </div>
+    )
+
   if (trainingPlan.daysToRace < 0)
     return (
       <Card title="ตารางซ้อม">
@@ -191,6 +228,8 @@ export default function TrainingTab({ plan, route, pacing, fueling, baseRaces, c
     )
 
   return (
+    <div>
+    {viewSwitch}
     <div className="grid gap-4 lg:grid-cols-[400px_1fr]">
       <div className="space-y-4">
         {/* ── สนาม ── */}
@@ -545,6 +584,7 @@ export default function TrainingTab({ plan, route, pacing, fueling, baseRaces, c
           )}
         </Card>
       </div>
+    </div>
     </div>
   )
 }
