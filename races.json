@@ -1,0 +1,1107 @@
+{
+ "source": "race.thai.run",
+ "updatedAt": "2026-11-23T16:05:24.200Z",
+ "count": 74,
+ "races": [
+  {
+   "id": "tr_hearttoheartrun2026",
+   "name": "HEART TO HEART RUN 2026",
+   "date": "2026-11-28",
+   "location": "Bangkok",
+   "organizer": "ไทยประกันชีวิต x ThaiRun",
+   "distancesKm": [
+    5
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/hearttoheartrun2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_supercchefrun5",
+   "name": "SUPER C CHEF RUN MINIMARATHON 5",
+   "date": "2026-11-29",
+   "location": "Samut Sakhon",
+   "organizer": "SUPER C CHEF RUN MINI MARATHON",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/supercchefrun5",
+   "regOpen": false
+  },
+  {
+   "id": "tr_kobfa4",
+   "name": "ขอบฟ้ากว้าง RUN วิ่งด้วยกันกับคนพิเศษ ครั้งที่ 4",
+   "date": "2026-11-29",
+   "location": "Khon Kaen",
+   "organizer": "มูลนิธิขอบฟ้ากว้าง",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/kobfa4",
+   "regOpen": false
+  },
+  {
+   "id": "tr_phutajortrail69",
+   "name": "ภูตาจอเทรล๖๙ / Phutajor Trail 69",
+   "date": "2026-11-29",
+   "location": "Phang-nga",
+   "organizer": "บริษัท เคทียู เทรล จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/phutajortrail69",
+   "regOpen": false
+  },
+  {
+   "id": "tr_internationalanti-corruptionday2026runfordad",
+   "name": "International Anti-Corruption Day 2026 Run For Dad",
+   "date": "2026-12-05",
+   "location": "Bangkok",
+   "organizer": "JOG&JOY",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/internationalanti-corruptionday2026runfordad",
+   "regOpen": false
+  },
+  {
+   "id": "tr_roadtogive2026",
+   "name": "Road To Give Bangkok 2026",
+   "date": "2026-12-05",
+   "location": "Bangkok",
+   "organizer": "Marriott International ",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/roadtogive2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_thaioilcharityrun2026",
+   "name": "65th Anniversary – Thaioil Charity Run 2026 “Run For a Sustainable Future”",
+   "date": "2026-12-06",
+   "organizer": "บริษัท ไทยออยล์ จำกัด (มหาชน)",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/thaioilcharityrun2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_satitmaechaemtrail2026",
+   "name": "SATIT-MAECHAEM TRAIL 2026",
+   "date": "2026-12-06",
+   "location": "Chiang Mai",
+   "organizer": "โรงเรียนสาธิตมหาวิทยาลัยศรีนครินทรวิโรฒ ฝ่ายมัธยม",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/satitmaechaemtrail2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_vientianemarathon2026",
+   "name": "Vientiane International Marathon 2026",
+   "date": "2026-12-06",
+   "organizer": "EFG Laos",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/vientianemarathon2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_tourroadtofuji2026",
+   "name": "(พาเพื่อนวิ่ง) ROAD TO MT.FUJI MARATHON 2026",
+   "date": "2026-12-12",
+   "organizer": "ThaiRun-X",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/tourroadtofuji2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_healingracefestivalrun",
+   "name": "Healing Race Festival Run by Amazing Thailand",
+   "date": "2026-12-12",
+   "location": "Phetchabun",
+   "organizer": "การท่องเที่ยวแห่งประเทศไทย (ททท.)",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/healingracefestivalrun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_amazonrun2026onceuponarun",
+   "name": "Amazon Run 2026 Once Upon A Run",
+   "date": "2026-12-13",
+   "organizer": "บริษัท หนึ่งเก้าสตูดิโอ จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/amazonrun2026onceuponarun",
+   "regOpen": false
+  },
+  {
+   "id": "tr_kurun6",
+   "name": "KU RUN 6 “Green Heart, Great Hope, Good Health” CHARITY RUN For Kasetsart Hospital",
+   "date": "2026-12-13",
+   "location": "Bangkok",
+   "organizer": "สมาคมนิสิตเก่ามหาวิทยาลัยเกษตรศาสตร์ ในพระบรมราชูปถัมภ์ ร่วมกับ มหาวิทยาลัยเกษตรศาสตร์",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/kurun6",
+   "regOpen": true
+  },
+  {
+   "id": "tr_runforfun",
+   "name": "RUN FOR FUN รัน ฟ.ฟัน",
+   "date": "2026-12-13",
+   "organizer": "สโมสรนักศึกษาทันตแพทย์ ร่วมกับ คณะทันตแพทยศาสตร์ มหาวิทยาลัยมหิดล และมูลนิธิมหาวิทยาลัยมหิดล",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/runforfun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_spmhalfmarathon",
+   "name": "Sportsmall Half Marathon 2026",
+   "date": "2026-12-13",
+   "location": "Bangkok",
+   "organizer": "SportsMall (สปอร์ตมอลล์) บริษัท เดอะมอลล์ กรุ๊ป จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/spmhalfmarathon",
+   "regOpen": true
+  },
+  {
+   "id": "tr_chiangdao100ultratrail2026",
+   "name": "CHIANG DAO 100 Ultra Trail 2026 Presented by DECATHLON",
+   "date": "2026-12-19",
+   "location": "Chiang Mai",
+   "organizer": "Five Sports Creator x Mae Khanin Club",
+   "distancesKm": [
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/chiangdao100ultratrail2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-shoes-2026",
+   "name": "adidas Adizero Evo SL Bangsaen21-2026",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-shoes-2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_bs21-ba-2026",
+   "name": "Bangsaen21-2026 (Ba pack)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-ba-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-charity-2026",
+   "name": "Bangsaen21-2026 (Charity)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-charity-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-foreigner-2026",
+   "name": "Bangsaen21-2026 (International Runner & Semi-Elite)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-foreigner-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-late-2026",
+   "name": "Bangsaen21-2026 (LATE PRICE)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-late-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-lotto-2026",
+   "name": "Bangsaen21-2026 (Lotto)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-lotto-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-loyalty-2026",
+   "name": "Bangsaen21-2026 (Loyalty)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-loyalty-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-senior-2026",
+   "name": "Bangsaen21-2026 (Senior60+)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-senior-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-thaifast-2026",
+   "name": "Bangsaen21-2026 (Thaifast)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-thaifast-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-vip-2026",
+   "name": "Bangsaen21-2026 (VIP)",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-vip-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bs21-wind-2026",
+   "name": "Bangsaen21-2026 WIND PACKAGE",
+   "date": "2026-12-20",
+   "location": "Chon Buri",
+   "organizer": "MICE and Communications",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bs21-wind-2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_chiangmaimarathon2026-foreigner",
+   "name": "Muangthai Chiang Mai Marathon 2026 (Foreigner)",
+   "date": "2026-12-20",
+   "location": "Chiang Mai",
+   "organizer": "JOG&JOY",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/chiangmaimarathon2026-foreigner",
+   "regOpen": true
+  },
+  {
+   "id": "tr_oceancrossing2026taluisland",
+   "name": "OCEAN CROSSING SERIES 2026 MAE PHIM - KOH TALU",
+   "date": "2026-12-20",
+   "location": "Rayong",
+   "organizer": "Ocean Crossing Series - OCS Thailand",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/oceancrossing2026taluisland",
+   "regOpen": true
+  },
+  {
+   "id": "tr_santarunpunsuk2026",
+   "name": "Santa Run ปันสุข 2026",
+   "date": "2026-12-20",
+   "location": "Bangkok",
+   "organizer": "Topking Sport",
+   "distancesKm": [
+    5
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/santarunpunsuk2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_thonburirun2",
+   "name": "Thonburirun#2",
+   "date": "2026-12-20",
+   "location": "Bangkok",
+   "organizer": "โรงพยาบาลธนบุรี​",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/thonburirun2",
+   "regOpen": true
+  },
+  {
+   "id": "tr_tvacharityrunning2026",
+   "name": "TVA Charity Running 2026 / วิ่งด้วยใจ ให้ชีวิตใหม่เพื่อนสี่ขา",
+   "date": "2026-12-20",
+   "location": "Pathum Thani",
+   "organizer": "สมาคมนักประเมินราคาอิสระไทย",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/tvacharityrunning2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_chiangmaimarathon2026",
+   "name": "เมืองไทยเชียงใหม่มาราธอน 2569",
+   "date": "2026-12-20",
+   "location": "Chiang Mai",
+   "organizer": "JOG&JOY",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/chiangmaimarathon2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_runjuanrunzing",
+   "name": "RUNJUAN RUNZING",
+   "date": "2026-12-25",
+   "organizer": "Rubsarb Production & MadamSo",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/runjuanrunzing",
+   "regOpen": true
+  },
+  {
+   "id": "tr_neramitnightrun2026@hatyai",
+   "name": "เนรมิตไนท์รัน2026@หาดใหญ่",
+   "date": "2026-12-25",
+   "location": "Songkhla",
+   "organizer": "การท่องเที่ยวแห่งประเทศไทย (ททท.) สำนักงานหาดใหญ่",
+   "distancesKm": [
+    5
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/neramitnightrun2026%40hatyai",
+   "regOpen": true
+  },
+  {
+   "id": "tr_airforcerunpresentedby7-eleven",
+   "name": "ALL member AIR FORCE RUN Presented By 7-Eleven",
+   "date": "2026-12-26",
+   "location": "Bangkok",
+   "organizer": "7-Eleven Thailand",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/airforcerunpresentedby7-eleven",
+   "regOpen": true
+  },
+  {
+   "id": "tr_efinletsprofitrun2027",
+   "name": "efin Let’s PROFIT RUN 2027",
+   "date": "2027-01-08",
+   "location": "Bangkok",
+   "organizer": "efin",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/efinletsprofitrun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_xiamenmarathon2026",
+   "name": "ทัวร์วิ่งจีน เซี่ยเหมินมาราธอน 2027 - เซี่ยเหมิน เกาะกู่ล่างอวี่ 4 วัน 3 คืน (MF)",
+   "date": "2027-01-08",
+   "organizer": "บริษัท เน็กซ์ บุ๊คกิ้ง จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/xiamenmarathon2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_bangkokbankfriendrun2027",
+   "name": "Bangkok Bank Friend Run 2027",
+   "date": "2027-01-09",
+   "location": "Bangkok",
+   "organizer": "ธนาคารกรุงเทพ จำกัด (มหาชน)",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bangkokbankfriendrun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_genrace2027",
+   "name": "GENRACE 2027",
+   "date": "2027-01-09",
+   "organizer": "พาลูกเที่ยวดะ x ABLE AGENCY",
+   "distancesKm": [
+    5
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/genrace2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_muteyou",
+   "name": "MUTEYOU : MOVE GROOVE RUN",
+   "date": "2027-01-09",
+   "location": "Bangkok",
+   "organizer": "Muteyou",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/muteyou",
+   "regOpen": true
+  },
+  {
+   "id": "tr_bangkokmarathon2026foreigner",
+   "name": "37th Bangkok Marathon (foreigners)",
+   "date": "2027-01-10",
+   "location": "Bangkok",
+   "organizer": "สมาคมนักวิ่งเพื่อสุขภาพแห่งประเทศไทย (National Jogging Association of Thailand)",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bangkokmarathon2026foreigner",
+   "regOpen": false
+  },
+  {
+   "id": "tr_ramherorun2027",
+   "name": "Ram Hero Run 2027",
+   "date": "2027-01-10",
+   "organizer": "โรงพยาบาลรามคำแหง",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/ramherorun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_bangkokmarathon2026",
+   "name": "กรุงเทพมาราธอน ครั้งที่ 37",
+   "date": "2027-01-10",
+   "location": "Bangkok",
+   "organizer": "สมาคมนักวิ่งเพื่อสุขภาพแห่งประเทศไทย (National Jogging Association of Thailand)",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bangkokmarathon2026",
+   "regOpen": false
+  },
+  {
+   "id": "tr_hcmc2027",
+   "name": "HCMC MARATHON 2027",
+   "date": "2027-01-17",
+   "organizer": "Pulse Active",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/hcmc2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_leorunforchild2027",
+   "name": "Leo Run For Child 2027",
+   "date": "2027-01-17",
+   "location": "Bangkok",
+   "organizer": "บริษัท ลีโอ โกลบอล โลจิสติกส์ จำกัด (มหาขน)",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/leorunforchild2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_nakhonchiangrairun2027",
+   "name": "Nakhon Chiangrai Run 2027",
+   "date": "2027-01-17",
+   "organizer": "สมาคมกีฬาแห่งจังหวัดเชียงราย",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/nakhonchiangrairun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_vtrail2027",
+   "name": "V Trail 2027",
+   "date": "2027-01-17",
+   "organizer": "Green Step ",
+   "distancesKm": [
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/vtrail2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_saturdayschoolrun2026",
+   "name": "Saturday School Run 2026",
+   "date": "2027-01-23",
+   "location": "Bangkok",
+   "organizer": "มูลนิธิโรงเรียนวันเสาร์",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/saturdayschoolrun2026",
+   "regOpen": true
+  },
+  {
+   "id": "tr_cowayrun",
+   "name": "Coway Run 2027",
+   "date": "2027-01-24",
+   "location": "Bangkok",
+   "organizer": "ADDICT CO., LTD.",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/cowayrun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_dutchmillhealthylifestylecharityrun",
+   "name": "Dutch Mill Healthy Lifestyle Charity Run",
+   "date": "2027-01-24",
+   "location": "Nakhon Pathom",
+   "organizer": "ดัชมิลล์",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/dutchmillhealthylifestylecharityrun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_coffeerun2027",
+   "name": "Coffee run 2027",
+   "date": "2027-01-31",
+   "location": "Bangkok",
+   "organizer": "บริษัท มดยักษ์ใหญ่ จำกัด",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/coffeerun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_en-techrun2027",
+   "name": "EN-TECH RUN 2027",
+   "date": "2027-01-31",
+   "location": "Nakhon Phanom",
+   "organizer": "คณะวิศวกรรมศาสตร์และเทคโนโลยีอุตสาหกรรม มหาวิทยาลัยศิลปากร วิทยาเขตพระราชวังสนามจันทร์ จ.นครปฐม",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/en-techrun2027",
+   "regOpen": false
+  },
+  {
+   "id": "tr_givegreencbdbangkokmarathon2027",
+   "name": "GIVE GREEN CBD BANGKOK MARATHON 2027",
+   "date": "2027-01-31",
+   "organizer": "About The Race",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/givegreencbdbangkokmarathon2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_koratdogrun2027",
+   "name": "Korat Dog Run 2027",
+   "date": "2027-01-31",
+   "organizer": "Korat Dog Community",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/koratdogrun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_suanphueng100ultramarathonep5",
+   "name": "Suan Phueng 100 Ultra Marathon EP.5",
+   "date": "2027-02-06",
+   "location": "Ratchaburi",
+   "organizer": "Ultra Park Run Thailand 100K",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/suanphueng100ultramarathonep5",
+   "regOpen": true
+  },
+  {
+   "id": "tr_nykmarathon2027",
+   "name": "NYK MARATHON 2027",
+   "date": "2027-02-07",
+   "location": "Nakhon Nayok",
+   "organizer": "RUN HAPPY SERIES",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/nykmarathon2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_runalone2027",
+   "name": "RUN ALONE BUT NOT LONELY 2027",
+   "date": "2027-02-07",
+   "location": "Bangkok",
+   "organizer": "บริษัท มดยักษ์ใหญ่ จำกัด",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/runalone2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_chaisaengrun2027",
+   "name": "งานวิ่งการกุศลไชยแสงปาร์ตี้รัน ฟันคอนเสิร์ต",
+   "date": "2027-02-13",
+   "location": "Sing Buri",
+   "organizer": "บริษัท ซีเอส พาร์ค จำกัด(ห้างไชยแสง ซูเปอร์สโตร์)",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/chaisaengrun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_buengsifainightrun2027",
+   "name": "บึงสีไฟไนท์รัน 2027",
+   "date": "2027-02-13",
+   "location": "Phichit",
+   "organizer": "เทศบาลเมืองพิจิตร",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/buengsifainightrun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_arurun2027",
+   "name": "ARU RUN 2027",
+   "date": "2027-02-14",
+   "location": "Phra Nakhon Si Ayutthaya",
+   "organizer": "มหาวิทยาลัยราชภัฏพระนครศรีอยุธยา ",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/arurun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_khonkaen21-2027",
+   "name": "KHONKAEN21-2027",
+   "date": "2027-02-14",
+   "location": "Khon Kaen",
+   "organizer": "บริษัท เวคอัพ ทีม จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/khonkaen21-2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_kcrun",
+   "name": "งานวิ่งคุ้มเกล้า - คุ้มชีวิต สตรีไทย ปลอดภัยมะเร็งเต้านม และนรีเวช",
+   "date": "2027-02-14",
+   "location": "Bangkok",
+   "organizer": "มูลนิธิกาญจนบารมี",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/kcrun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_khaonangyongtrail2027",
+   "name": "เทรลเขานางหย่อง",
+   "date": "2027-02-20",
+   "location": "Rayong",
+   "organizer": "V POW THAILAND",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/khaonangyongtrail2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_chaiyaphummarathon1st",
+   "name": "Chaiyaphum Marathon - The First Marathon",
+   "date": "2027-02-21",
+   "location": "Chaiyaphum",
+   "organizer": "Runvegas Series ร่วมกับจังหวัดชัยภูมิ และสำนักงานการกีฬาแห่งประเทศไทยจังหวัดชัยภูมิ",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/chaiyaphummarathon1st",
+   "regOpen": true
+  },
+  {
+   "id": "tr_nongmuangminimarathon2027",
+   "name": "Nongmuang Mini Marathon 2027",
+   "date": "2027-02-21",
+   "location": "Lop Buri",
+   "organizer": "โรงพยาบาลหนองม่วง",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/nongmuangminimarathon2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_rotarysaraburicharityrun",
+   "name": "งานเดิน-วิ่ง การกุศล ครั้งที่ 8",
+   "date": "2027-02-28",
+   "location": "Saraburi",
+   "organizer": "สโมสรโรตารีสระบุรี",
+   "distancesKm": [
+    5,
+    10,
+    21.1
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/rotarysaraburicharityrun",
+   "regOpen": true
+  },
+  {
+   "id": "tr_clone_1794812788_nakhonchiangrairun2027",
+   "name": "วิ่งรวมใจอายุรศาสตร์ศิริราช SiMED Walk.Run ครั้งที่ 2",
+   "date": "2027-02-28",
+   "organizer": "ภาควิชาอายุรศาสตร์ คณะแพทยศาสตร์ศิริราชพยาบาล",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/clone_1794812788_nakhonchiangrairun2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_bangkok10",
+   "name": "Bangkok10",
+   "date": "2027-03-14",
+   "location": "Bangkok",
+   "organizer": "RUNRIO Thailand",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/bangkok10",
+   "regOpen": true
+  },
+  {
+   "id": "tr_wuhanmarathon2027",
+   "name": "แพ็คเกจทัวร์วิ่งจีน อู่ฮั่นมาราธอน 2027 - อู่ฮั่น ซากุระสวนตงหู 5 วัน 4 คืน",
+   "date": "2027-03-18",
+   "organizer": "บริษัท เน็กซ์ บุ๊คกิ้ง จำกัด",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/wuhanmarathon2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_palukwingdaonthebeach2027",
+   "name": "พาลูกวิ่งดะ Obstacle On The Beach 2027 : Aloha Adventure Island",
+   "date": "2027-03-20",
+   "location": "Prachuap Khiri Khan",
+   "organizer": "เพจพาลูกเที่ยวดะ Palukteawda",
+   "distancesKm": [
+    5
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/palukwingdaonthebeach2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_danang2027",
+   "name": "Danang International Marathon 2027",
+   "date": "2027-03-21",
+   "organizer": "Pulse Active",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/danang2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_tohokumarathon2027",
+   "name": "Tohoku Food Marathon 2027",
+   "date": "2027-04-18",
+   "organizer": "Tohokumarathon",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/tohokumarathon2027",
+   "regOpen": true
+  },
+  {
+   "id": "tr_mtbcrosscountry2027",
+   "name": "MTB X Cross-Country 2027 (Mountain Breeze Cross-Country, Nakhon Nayok)",
+   "date": "2027-05-30",
+   "location": "Nakhon Nayok",
+   "organizer": "Runvegas (Thailand)",
+   "distancesKm": [
+    5,
+    10,
+    21.1,
+    42.195
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/mtbcrosscountry2027",
+   "regOpen": true
+  }
+ ]
+}
