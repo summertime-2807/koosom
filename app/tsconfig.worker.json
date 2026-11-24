@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": { "types": ["@cloudflare/workers-types"], "lib": ["ES2022"], "noEmit": true },
+  "include": ["worker", "src/coach", "src/engine/trainingEngine.ts", "src/lib", "src/types"],
+  "exclude": []
+}

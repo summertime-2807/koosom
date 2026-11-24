@@ -9,12 +9,20 @@ import { IntervalsClient } from '../src/coach/intervals'
 import { loadAndAnalyze, commitReport } from '../src/coach/runner'
 import { battery, overallLight, lightDot } from '../src/coach/engine'
 import { addDays } from '../src/engine/trainingEngine'
+import { MENU, linePush, questionMessages, text } from '../src/coach/line'
 
 const mode = process.argv[2] === 'morning' ? 'morning' : 'night'
 const id = process.env.INTERVALS_ATHLETE_ID?.trim()
 const key = process.env.INTERVALS_API_KEY?.trim()
 const topic = process.env.NTFY_TOPIC?.trim()
+const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim()
+const lineUser = process.env.LINE_USER_ID?.trim()
 const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) // เวลาไทย
+
+async function line(messages: Parameters<typeof linePush>[2]) {
+  if (!lineToken || !lineUser) return
+  await linePush(lineToken, lineUser, messages).catch((e) => console.log('line push failed', (e as Error).message.slice(0, 60)))
+}
 
 async function notify(title: string, body: string) {
   if (!topic) return
@@ -46,7 +54,9 @@ async function main() {
     const ov = overallLight(b)
     console.log(`morning: items=${b.length}`)
     if (ov === 'red' || ov === 'yellow') {
-      await notify(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง`, b.filter((x) => x.light !== 'green').map((x) => `${lightDot(x.light)} ${x.label} ${x.value} — ${x.why}`).join('\n'))
+      const body = b.filter((x) => x.light !== 'green').map((x) => `${lightDot(x.light)} ${x.label} ${x.value} — ${x.why}`).join('\n')
+      await notify(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง`, body)
+      await line([text(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง\n${body}`, MENU)])
     }
     return
   }
@@ -55,6 +65,8 @@ async function main() {
   console.log(`night: applied=${r.applied} questions=${data.report.questions.length} days=${data.report.days.length}`)
   const title = `${lightDot(data.report.overall)} โค้ชสรุป ${today.slice(5)}${data.report.questions.length ? ' ❓' : ''}`
   await notify(title, data.report.summary.slice(0, 3800))
+  const fresh = await loadAndAnalyze(client, cfg, today)
+  await line([text(`${title}\n\n${data.report.summary}`, MENU), ...questionMessages(fresh.openQuestions)].slice(0, 5))
 }
 
 main().catch((e) => {

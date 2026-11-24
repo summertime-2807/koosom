@@ -164,6 +164,7 @@ export default function App() {
         <header className="sticky top-0 z-[1100] border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur">
           <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5">
             <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-bold tracking-wide text-zinc-500">คู่ซ้อม · KooSom</div>
               <div className="truncate text-sm font-semibold">{plan.meta.name || 'แผนวิ่งของฉัน'}</div>
               <div className="num truncate text-[11px] text-zinc-500">
                 {fmtThaiDate(plan.meta.date)} · {route.totalDistanceKm.toFixed(2)} กม. · เป้า {fmtHMS(pacing.totalSec)} · {fmtPace(pacing.avgPaceSec)}/กม.
