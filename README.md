@@ -1,6 +1,6 @@
 # คู่ซ้อม (KooSom)
 
-เปิดใช้งาน: https://summertime-2807.github.io/raceplan/
+เปิดใช้งาน: https://summertime-2807.github.io/koosom/
 
 - `index.html` — แอปทั้งตัวในไฟล์เดียว (ที่ GitHub Pages เสิร์ฟ)
 - `app/` — โค้ดเต็ม (React + Vite + TS + Tailwind): `cd app && npm install && npm run dev`
