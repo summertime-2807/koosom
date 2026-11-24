@@ -120,6 +120,31 @@ export const RACE_PROFILES: Record<string, RaceProfile> = {
     sources: [{ title: 'Thairath — Scenic Marathon Series 2026', url: 'https://en.thairath.co.th/sport/others/2914959' }],
     dataLevel: 'partial',
   },
+  hatyai21_27: {
+    raceId: 'hatyai21_27',
+    lat: 7.0086,
+    lon: 100.4747,
+    startTimes: { '21.1': '04:00' },
+    course: 'flat',
+    courseNotes: [
+      'ปล่อยตัวหน้า ICC หาดใหญ่ เส้นทางราบ เหมาะทำสถิติ',
+      'รับรอง World Athletics Label และ AIMS',
+      'วันที่ปี 2027 ยังไม่ประกาศ — แผนนี้ตั้งไว้ 9 พ.ค. 2570 ตามช่วงที่จัดปีล่าสุด ปรับวันได้เมื่อมีประกาศ',
+    ],
+    climate: { tempC: 26, humidity: 85, note: 'หาดใหญ่ พ.ค.–ก.ค. เช้ามืดราว 25–26°C ชื้นมาก อาจมีฝน', estimated: true },
+    pastEditions: [
+      { year: 2026, date: '2026-05-10', note: 'ปล่อยตัว 04:00 หน้า ICC หาดใหญ่' },
+      { year: 2025, date: '2025-07-06', note: 'จัดต้นเดือน ก.ค.' },
+      { year: 2024, note: 'จัดกลางเดือน มิ.ย.' },
+    ],
+    stats: ['World Athletics Label Road Race'],
+    sources: [
+      { title: 'ahotu — HATYAi21', url: 'https://www.ahotu.com/event/hatyai21' },
+      { title: 'AIMS — HATYAi21', url: 'https://aims-worldrunning.org/races/10425.html' },
+      { title: 'ผลปี 2026', url: 'https://my.raceresult.com/398145/results' },
+    ],
+    dataLevel: 'good',
+  },
   rama8_27: {
     raceId: 'rama8_27',
     lat: 13.7735,

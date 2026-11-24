@@ -39,6 +39,7 @@ export const RACE_CALENDAR: CalendarRace[] = [
   { id: 'tr_nyk27', name: 'NYK MARATHON 2027', dateText: 'ดูวันที่บนเว็บ', organizer: 'RUN HAPPY SERIES', distancesKm: [], source: TR, url: THAIRUN_URL },
   { id: 'tr_nm27', name: 'Nongmuang Mini Marathon 2027', dateText: 'ดูวันที่บนเว็บ', distancesKm: [], source: TR, url: THAIRUN_URL },
   { id: 'tr_cyp27', name: 'Chaiyaphum Marathon – The First Marathon', dateText: 'ดูวันที่บนเว็บ', location: 'ชัยภูมิ', organizer: 'Runvegas Series', distancesKm: [], source: TR, url: THAIRUN_URL },
+  { id: 'hatyai21_27', name: 'HATYAi21 2027 (วันที่คาดการณ์)', date: '2027-05-09', dateText: 'คาด พ.ค. 2570 — รอประกาศ', location: 'หาดใหญ่ สงขลา', distancesKm: [21.1], organizer: 'MICE and Communications', source: 'ahotu', url: 'https://www.ahotu.com/event/hatyai21' },
   { id: 'rama8_27', name: 'Rama 8 Half Marathon', date: '2027-05-16', location: 'กรุงเทพฯ', distancesKm: [5, 10, 21.1], source: AH, url: AH_TH },
 ]
 
