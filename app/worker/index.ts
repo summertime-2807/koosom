@@ -267,7 +267,26 @@ export default {
     if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
     const body = await req.text()
     if (!(await verify(body, req.headers.get('x-line-signature'), env.LINE_CHANNEL_SECRET))) return new Response('bad signature', { status: 401 })
-    const payload = JSON.parse(body) as { events?: LineEvent[] }
+    const payload = JSON.parse(body) as { events?: LineEvent[]; selftest?: string }
+    // ทดสอบตัวเอง (ต้องเซ็นด้วย channel secret): รันคำสั่ง แล้วให้ LINE ตรวจรูปแบบข้อความโดยไม่ส่งจริง
+    // คืนเฉพาะสถานะ ไม่คืนเนื้อหา (log ของ GitHub Actions เป็นสาธารณะ)
+    if (payload.selftest) {
+      const t0 = Date.now()
+      try {
+        const msgs = await handle({ type: 'message', replyToken: 'selftest', source: { userId: env.LINE_USER_ID }, message: { type: 'text', text: payload.selftest } }, env)
+        const v = await fetch('https://api.line.me/v2/bot/message/validate/reply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` },
+          body: JSON.stringify({ messages: msgs.slice(0, 5) }),
+        })
+        const vtxt = v.ok ? '' : (await v.text()).slice(0, 300)
+        const first = msgs[0]
+        const preview = first?.type === 'text' ? first.text.slice(0, 2) : first?.altText.slice(0, 2)
+        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, count: msgs.length, types: msgs.map((m) => m.type), valid: v.status, error: vtxt || undefined, ai: first?.type === 'text' && first.text.startsWith('💬'), aiFail: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้'), lead: preview })
+      } catch (e) {
+        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, thrown: (e as Error).message.slice(0, 200) })
+      }
+    }
     ctx.waitUntil(
       (async () => {
         for (const ev of payload.events ?? []) {
