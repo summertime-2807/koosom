@@ -3,7 +3,7 @@
 //   night   (21:07): อ่านผลซ้อม + ค่าร่างกาย → ปรับตารางตามกฎ → เขียนสรุปลงปฏิทิน → ส่ง LINE
 //                    + วันอาทิตย์: การ์ดรายงานสัปดาห์
 //                    + วันแข่งถึง 2 วันหลังแข่ง: วิเคราะห์ผลแข่ง (ส่งครั้งเดียว)
-//   morning (08:07): ซ้อมวันนี้ + แบตเตอรี่ร่างกาย
+//   morning (08:07): ซ้อมวันนี้ + แบตเตอรี่ร่างกาย (ข้ามถ้าเชื่อม Google Health — บอทส่ง "☀️ ตื่นแล้ว" หลังตื่นจริงแทน)
 //                    + เหลือ ≤ 7 วันก่อนแข่ง: การ์ดสัปดาห์แข่ง (พยากรณ์อากาศ + สิ่งที่ต้องทำ)
 //                    + 1 วันก่อนแข่งและวันแข่ง: การ์ดเพซ
 // secrets: INTERVALS_ATHLETE_ID, INTERVALS_API_KEY, LINE_CHANNEL_ACCESS_TOKEN, LINE_USER_ID, (ไม่บังคับ) NTFY_TOPIC
@@ -18,6 +18,8 @@ import type { LineMessage } from '../src/coach/line'
 import { REVIEW_PREFIX, findRaceActivity, analyzeRace, loadShoes, paceCard, raceInfo, raceWeather, shoeWarnings, shoesOldest, weeklyData } from '../src/coach/extras'
 import { paceCardFlex, raceWeekFlex, reviewFlex, weeklyFlex } from '../src/coach/flex'
 import { fmtHMS } from '../src/lib/time'
+import { loadSleepStore } from '../src/coach/googleHealth'
+import { sleepStats } from '../src/coach/sleepCoach'
 
 const mode = process.argv[2] === 'morning' ? 'morning' : 'night'
 const id = process.env.INTERVALS_ATHLETE_ID?.trim()
@@ -86,8 +88,11 @@ async function main() {
     lines.push('', `${lightDot(ov)} แบตเตอรี่ร่างกาย`)
     for (const x of b) lines.push(`${lightDot(x.light)} ${x.label} ${x.value}${x.light !== 'green' ? ` — ${x.why}` : ''}`)
     if (ov === 'red' && todays.length) lines.push('', 'ค่าร่างกายไม่ดี ถ้าวันนี้เป็นวันหนัก ลองลดเป็นวิ่งเบา หรือพิมพ์ถามโค้ชได้เลย')
+    // ถ้าเชื่อม Google Health แล้ว บอทจะส่ง "☀️ ตื่นแล้ว" หลังตื่นจริงแทน (เวลานอนไม่ตายตัว) → ไม่ส่งซ้ำตอน 08:07
+    const sleepStore = await loadSleepStore(client).catch(() => null)
+    const wakeMode = !!sleepStore && Date.now() - Date.parse(sleepStore.updatedAt) < 2 * 86400e3
     // ไม่ส่งถ้าวันพักและร่างกายปกติ (ประหยัดโควตา push ของ LINE)
-    if (todays.length || ov === 'red' || ov === 'yellow') msgs.push(text(lines.join('\n'), MENU))
+    if (!wakeMode && (todays.length || ov === 'red' || ov === 'yellow')) msgs.push(text(lines.join('\n'), MENU))
     if (ov === 'red' || ov === 'yellow') await notify(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง`, b.filter((x) => x.light !== 'green').map((x) => `${x.label} ${x.value} — ${x.why}`).join('\n'))
 
     if (info && daysLeft != null && daysLeft >= 0 && daysLeft <= 7) {
@@ -130,7 +135,9 @@ async function main() {
     const [acts, wellness, store] = await Promise.all([client.activities(addDays(today, -70), today), client.wellness(addDays(today, -21), today), loadShoes(client)])
     const shoeActs = store.shoes.length ? await client.activities(shoesOldest(store, today), today) : []
     const w = weeklyData(fresh.events, acts, wellness, cfg, today)
-    msgs.push(flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs)), MENU))
+    const ss = await loadSleepStore(client).catch(() => null)
+    const sst = ss ? sleepStats(ss.nights, today, cfg.sleepTargetMin) : undefined
+    msgs.push(flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs), sst), MENU))
   }
 
   msgs.push(...questionMessages(fresh.openQuestions))

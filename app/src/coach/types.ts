@@ -60,6 +60,8 @@ export interface CoachConfig {
   restHr?: number
   /** วันที่เริ่มให้งานอัตโนมัติปรับตาราง */
   autoAdjust: boolean
+  /** เป้าการนอนต่อวัน (นาที) — ค่าเริ่มต้น 450 = 7.5 ชม. */
+  sleepTargetMin?: number
 }
 
 export type Light = 'green' | 'yellow' | 'red' | 'none'

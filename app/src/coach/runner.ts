@@ -43,10 +43,12 @@ export async function loadAndAnalyze(client: IntervalsClient, cfg: CoachConfig, 
   const notes = events.filter((e) => e.category === 'NOTE' && e.external_id?.startsWith(NOTE_PREFIX))
   const handled = new Set<string>()
   const openQuestions: CoachData['openQuestions'] = []
+  const askedIds = new Set<string>()
   for (const n of notes) {
     const s = parseNote(n)
     s.handled.forEach((h) => handled.add(h))
     for (const q of s.questions) {
+      askedIds.add(q.id)
       if (q.answered) handled.add(q.date)
       else openQuestions.push({ ...q, noteDate: dateOf(n.start_date_local) })
     }
@@ -59,7 +61,8 @@ export async function loadAndAnalyze(client: IntervalsClient, cfg: CoachConfig, 
   const plan = events.filter((e) => e.external_id !== CONFIG_EXTERNAL_ID && !e.external_id?.startsWith(NOTE_PREFIX))
   const report = buildReport({ events: plan, acts, wellness, cfg, today, handled, injuryDates })
   // คำถามใหม่ที่ซ้ำ id กับที่ค้างอยู่ ตัดออก
-  report.questions = report.questions.filter((q) => !openQuestions.some((o) => o.id === q.id))
+  // ถามไปแล้ว (ตอบแล้วหรือยังค้าง) ไม่ถามซ้ำ
+  report.questions = report.questions.filter((q) => !askedIds.has(q.id))
   return { events: plan, notes, report, openQuestions }
 }
 

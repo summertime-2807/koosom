@@ -162,7 +162,7 @@ describe('รายงานสัปดาห์', () => {
 })
 
 describe('การนอนจาก Google Health', () => {
-  it('รวมเป็นรายคืนตามวันตื่น (เวลาไทย) ไม่นับงีบกลางวัน', async () => {
+  it('รวมรายวันตามวันตื่น (เวลาไทย) งีบ < 90 นาทีแยกไว้', async () => {
     const { nightsFrom } = await import('../../coach/googleHealth')
     const pt = (start: string, end: string, asleep: number, period: number, main = false) => ({
       sleep: {
@@ -182,5 +182,7 @@ describe('การนอนจาก Google Health', () => {
     expect(nights[0].start).toBe('22:30')
     expect(nights[0].end).toBe('05:45')
     expect(nights[1].asleepMin).toBe(330)
+    expect(nights[0].napMin).toBe(35)
+    expect(nights[1].napMin).toBe(30)
   })
 })

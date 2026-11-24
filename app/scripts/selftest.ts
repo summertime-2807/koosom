@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto'
 
 const url = process.env.WORKER_URL ?? 'https://raceplan-line-bot.sicasica03.workers.dev/'
 const secret = process.env.LINE_CHANNEL_SECRET?.trim()
-const cmds = (process.env.CMDS ?? '__google,ติดงาน,การนอน,วันนี้,สัปดาห์,สรุป,รายงาน,แข่ง,การ์ดเพซ,ผลแข่ง,รองเท้า,เพิ่มเติม,ถามโค้ช,เป้า,คำถาม,เมนู,พรุ่งนี้ควรซ้อมหนักไหม,รองเท้าคู่ไหนเหมาะกับวันแข่ง,เพซ easy ของผมควรเท่าไหร่').split(',')
+const cmds = (process.env.CMDS ?? '__google,ติดงาน,การนอน,นอนกี่โมงดี,ตื่น 14:00,นอนตอนนี้,งีบ,เป้าการนอน,การนอน,วันนี้,สัปดาห์,สรุป,รายงาน,แข่ง,การ์ดเพซ,ผลแข่ง,รองเท้า,เพิ่มเติม,ถามโค้ช,เป้า,คำถาม,เมนู,พรุ่งนี้ควรซ้อมหนักไหม,รองเท้าคู่ไหนเหมาะกับวันแข่ง,เพซ easy ของผมควรเท่าไหร่').split(',')
 
 async function main() {
   if (!secret) throw new Error('no LINE_CHANNEL_SECRET')

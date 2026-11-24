@@ -64,7 +64,7 @@ interface SleepPoint {
   sleep?: {
     interval?: { startTime?: string; endTime?: string; startUtcOffset?: string; endUtcOffset?: string; civilEndTime?: unknown }
     type?: string
-    summary?: { minutesInSleepPeriod?: string | number; minutesAsleep?: string | number; minutesAwake?: string | number }
+    summary?: { minutesInSleepPeriod?: string | number; minutesAsleep?: string | number; minutesAwake?: string | number; minutesToFallAsleep?: string | number }
     metadata?: { mainSleep?: boolean }
   }
 }
@@ -73,9 +73,16 @@ export interface NightSleep {
   date: string // วันที่ตื่น (เวลาท้องถิ่น)
   asleepMin: number
   inBedMin: number
-  start: string
+  start: string // HH:MM ของการนอนหลัก
   end: string
   sessions: number
+  /** เวลาจริง (epoch ms) ของการนอนหลัก */
+  startMs?: number
+  endMs?: number
+  /** นาทีกว่าจะหลับ */
+  latencyMin?: number
+  /** งีบสั้น (< 90 นาที) ที่ไม่นับรวม */
+  napMin?: number
 }
 
 const num = (v: unknown) => (v == null ? 0 : Number(v) || 0)
@@ -89,7 +96,8 @@ function localHM(iso: string, off?: string): string {
   return new Date(Date.parse(iso) + offsetSec(off) * 1000).toISOString().slice(11, 16)
 }
 
-/** รวมการนอนรายคืน: ใช้ session หลัก (mainSleep หรือยาวสุด) + งีบที่จบหลัง 18:00 ของคืนก่อน */
+/** รวมการนอนรายวัน (ตามวันตื่น): นับการนอนหลัก + ช่วงนอนอื่นที่ยาว ≥ 90 นาที (นอนแบ่งช่วงของคนทำงานเป็นกะ)
+ *  งีบสั้นกว่า 90 นาทีแยกเป็น napMin */
 export function nightsFrom(points: SleepPoint[]): NightSleep[] {
   const byDate = new Map<string, NonNullable<SleepPoint['sleep']>[]>()
   for (const p of points) {
@@ -101,21 +109,48 @@ export function nightsFrom(points: SleepPoint[]): NightSleep[] {
   const out: NightSleep[] = []
   for (const [date, list] of byDate) {
     const main = list.find((s) => s.metadata?.mainSleep) ?? [...list].sort((a, b) => num(b.summary?.minutesAsleep) - num(a.summary?.minutesAsleep))[0]
-    // นับเฉพาะช่วงที่เป็นการนอนกลางคืน (เริ่มก่อน 12:00 ของวันตื่น) — งีบกลางวันไม่นับ
-    const night = list.filter((s) => s === main || localDate(s.interval!.startTime!, s.interval!.startUtcOffset) < date || localHM(s.interval!.startTime!, s.interval!.startUtcOffset) < '12:00')
-    const asleepMin = night.reduce((a, s) => a + num(s.summary?.minutesAsleep), 0)
-    const inBedMin = night.reduce((a, s) => a + (num(s.summary?.minutesInSleepPeriod) || num(s.summary?.minutesAsleep) + num(s.summary?.minutesAwake)), 0)
+    const blocks = list.filter((s) => s === main || num(s.summary?.minutesAsleep) >= 90)
+    const naps = list.filter((s) => !blocks.includes(s))
+    const asleepMin = blocks.reduce((a, s) => a + num(s.summary?.minutesAsleep), 0)
+    const inBedMin = blocks.reduce((a, s) => a + (num(s.summary?.minutesInSleepPeriod) || num(s.summary?.minutesAsleep) + num(s.summary?.minutesAwake)), 0)
     if (asleepMin < 60) continue
+    const lat = main.summary?.minutesToFallAsleep
     out.push({
       date,
       asleepMin,
       inBedMin,
       start: localHM(main.interval!.startTime!, main.interval!.startUtcOffset),
       end: localHM(main.interval!.endTime!, main.interval!.endUtcOffset),
-      sessions: night.length,
+      sessions: blocks.length,
+      startMs: Date.parse(main.interval!.startTime!),
+      endMs: Date.parse(main.interval!.endTime!),
+      latencyMin: lat == null ? undefined : num(lat),
+      napMin: naps.reduce((a, s) => a + num(s.summary?.minutesAsleep), 0) || undefined,
     })
   }
   return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// ── เก็บประวัติการนอน 30 วัน (NOTE ใน Intervals — ใช้ร่วมกันระหว่างบอทกับงานอัตโนมัติ) ──
+export const SLEEP_STORE_ID = 'raceplan-sleep'
+export const SLEEP_STORE_DATE = '2020-01-03'
+export interface SleepStore {
+  version: 1
+  updatedAt: string
+  nights: NightSleep[]
+}
+export async function loadSleepStore(client: IntervalsClient): Promise<SleepStore | null> {
+  const { data } = await client.loadJson<SleepStore>(SLEEP_STORE_ID, SLEEP_STORE_DATE)
+  return data
+}
+export async function saveSleepStore(client: IntervalsClient, nights: NightSleep[]): Promise<SleepStore> {
+  const prev = (await loadSleepStore(client))?.nights ?? []
+  const map = new Map(prev.map((n) => [n.date, n]))
+  for (const n of nights) map.set(n.date, n)
+  const all = [...map.values()].sort((a, b) => a.date.localeCompare(b.date)).slice(-30)
+  const store: SleepStore = { version: 1, updatedAt: new Date().toISOString(), nights: all }
+  await client.saveJson(SLEEP_STORE_ID, SLEEP_STORE_DATE, '😴 การนอน (คู่ซ้อม · อย่าลบ)', store, 'ประวัติการนอนจาก Google Health 30 วันล่าสุด')
+  return store
 }
 
 export async function fetchSleep(token: string, fromDate: string): Promise<NightSleep[]> {
@@ -146,7 +181,8 @@ export async function syncSleep(client: IntervalsClient, creds: GoogleCreds, ref
   const token = await accessToken(creds, refreshToken)
   const nights = await fetchSleep(token, addDays(today, -days))
   const written = await pushNights(client, nights)
-  return { nights, written }
+  const store = await saveSleepStore(client, nights)
+  return { nights, written, store }
 }
 
 export function fmtNight(n: NightSleep): string {

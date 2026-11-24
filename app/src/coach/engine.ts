@@ -205,6 +205,28 @@ export interface RuleInput {
   battery: BatteryItem[]
   /** วันที่ผู้ใช้แจ้งอาการเจ็บ (NOTE ขึ้นต้น 🩹) */
   injuryDates: string[]
+  /** การนอน (จาก wellness ที่ซิงก์จาก Google Health/Garmin) */
+  sleep?: SleepSummary
+}
+
+export interface SleepSummary {
+  /** การนอนของวันที่ตื่นวันนี้ (นาที) */
+  lastMin?: number
+  /** หนี้การนอน 7 วัน (นาที) */
+  debtMin: number
+  targetMin: number
+}
+
+/** สรุปการนอนจาก wellness (sleepSecs ตามวันตื่น) */
+export function sleepSummary(wellness: IcuWellness[], today: string, targetMin = 450): SleepSummary {
+  const from = addDays(today, -6)
+  const ws = wellness.filter((w) => w.id >= from && w.id <= today && (w.sleepSecs ?? 0) > 0)
+  const lastMin = ws.find((w) => w.id === today)?.sleepSecs
+  return {
+    lastMin: lastMin ? Math.round(lastMin / 60) : undefined,
+    debtMin: Math.max(0, Math.round(ws.reduce((s, w) => s + (targetMin - (w.sleepSecs ?? 0) / 60), 0))),
+    targetMin,
+  }
 }
 
 function longRunText(kmVal: number, lthr: number) {
@@ -320,10 +342,37 @@ export function applyRules(r: RuleInput): { adjustments: Adjustment[]; questions
       })) })
   }
 
-  // แบตแดงก่อนวันหนัก
+  // นอนน้อยก่อนวันหนัก/วิ่งยาว (วันนี้: นอนเมื่อคืน < 5.5 ชม. หรือหนี้ ≥ 6 ชม. · พรุ่งนี้: หนี้ ≥ 6 ชม.)
+  const sl = r.sleep
+  const hardSoon = future.find((f) => (f.kind === 'quality' || f.kind === 'long') && daysBetween(today, f.date) <= 1)
+  if (sl && hardSoon) {
+    const isToday = hardSoon.date === today
+    const shortLast = isToday && sl.lastMin != null && sl.lastMin < 330
+    const bigDebt = sl.debtMin >= 360
+    if ((shortLast || bigDebt) && !r.handled.has(`sleep-${today}`)) {
+      const km = Math.min(8, Math.round(hardSoon.plannedKm ?? 6))
+      const why = [shortLast ? `นอนแค่ ${Math.floor(sl.lastMin! / 60)} ชม. ${sl.lastMin! % 60} น.` : '', bigDebt ? `หนี้การนอน 7 วัน ${(sl.debtMin / 60).toFixed(1)} ชม.` : ''].filter(Boolean).join(' และ')
+      questions.push({
+        id: `q-sleep-${today}`,
+        date: today,
+        text: `😴 ${why} และ${isToday ? 'วันนี้' : 'พรุ่งนี้'}มี${hardSoon.kind === 'long' ? 'วิ่งยาว' : 'วันหนัก'} (${hardSoon.planned?.name ?? ''}) — จะให้เปลี่ยนเป็นวิ่งง่าย ${km} กม. ไหม?`,
+        proposal: [
+          {
+            action: 'update',
+            eventId: hardSoon.planned!.id,
+            date: hardSoon.date,
+            patch: { name: `วิ่งง่าย ${km} กม. (ปรับ: นอนน้อย)`, description: `🔧 นอนน้อย/หนี้การนอนสูง เปลี่ยนเป็นวิ่งง่าย\n\n${easyText(km, cfg.lthr)}` },
+            note: 'เปลี่ยนเป็นวิ่งง่ายเพราะนอนน้อย',
+          },
+        ],
+      })
+    }
+  }
+
+  // แบตแดงก่อนวันหนัก (ถ้าถามเรื่องนอนไปแล้ว ไม่ถามซ้ำเรื่องเดียวกัน)
   const ov = overallLight(r.battery)
   const nextHard = future.find((f) => (f.kind === 'quality' || f.kind === 'long') && daysBetween(today, f.date) <= 1)
-  if (ov === 'red' && nextHard && !r.handled.has(`bat-${today}`)) {
+  if (ov === 'red' && nextHard && !r.handled.has(`bat-${today}`) && !questions.some((q) => q.id === `q-sleep-${today}`)) {
     questions.push({
       id: `q-battery-${today}`,
       date: today,
@@ -361,7 +410,8 @@ export function buildReport(input: {
   const days = buildDays(events, acts, from, to, today).filter((d) => d.date >= cfg.from && d.date <= cfg.to || d.status === 'extra')
   const bat = battery(wellness, today)
   const ov = overallLight(bat)
-  const { adjustments, questions } = applyRules({ days, today, cfg, handled: input.handled, battery: bat, injuryDates: input.injuryDates })
+  const sleep = sleepSummary(wellness, today, cfg.sleepTargetMin ?? 450)
+  const { adjustments, questions } = applyRules({ days, today, cfg, handled: input.handled, battery: bat, injuryDates: input.injuryDates, sleep })
   const rd = readiness(acts, today, cfg.distKm ?? 42.195)
 
   const L: string[] = []

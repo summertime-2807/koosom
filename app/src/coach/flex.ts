@@ -7,6 +7,8 @@ import type { IcuActivity } from './types'
 import { raceWeekTip, shoeKm } from './extras'
 import { dayLabel } from './line'
 import { fmtClock, fmtHMS, fmtMS } from '../lib/time'
+import type { SleepStats } from './sleepCoach'
+import { dur, hm } from './sleepCoach'
 
 const C = {
   bg: '#0f172a',
@@ -55,7 +57,7 @@ function bar(done: number, plan: number, max: number, color: string): Node {
 const STATUS_COLOR: Record<string, string> = { done: C.accent, partial: C.warn, missed: C.bad, extra: C.blue, planned: C.track, rest: C.track }
 
 // ── รายงานสัปดาห์ ──
-export function weeklyFlex(w: WeeklyData, goalSec?: number, warnings: string[] = []): Node {
+export function weeklyFlex(w: WeeklyData, goalSec?: number, warnings: string[] = [], sleep?: SleepStats): Node {
   const max = Math.max(1, ...w.days.map((d) => Math.max(d.plannedKm, d.actualKm)))
   const pct = w.plannedKm ? Math.round((w.actualKm / w.plannedKm) * 100) : 0
   const rows = w.days.map((d) =>
@@ -84,6 +86,12 @@ export function weeklyFlex(w: WeeklyData, goalSec?: number, warnings: string[] =
   if (w.hrv != null) body.push(kv('HRV เฉลี่ย', `${Math.round(w.hrv)}${w.hrvPrev != null ? ` (ก่อน ${Math.round(w.hrvPrev)})` : ''}`, w.hrvPrev != null && w.hrv < w.hrvPrev * 0.93 ? C.warn : C.text))
   if (w.predictedSec) body.push(kv('เวลาคาดการณ์', `${fmtHMS(w.predictedSec)}${goalSec ? ` / เป้า ${fmtHMS(goalSec)}` : ''}`, goalSec && w.predictedSec <= goalSec ? C.accent : C.warn))
   body.push(kv('สัปดาห์หน้า', `${w.nextWeekKm} กม.`))
+  if (sleep?.nights7.length) {
+    body.push(sep(), txt('😴 การนอนสัปดาห์นี้', { weight: 'bold', margin: 'md' }))
+    if (sleep.avgMin != null) body.push(kv('เฉลี่ย/วัน', `${dur(sleep.avgMin)} (เป้า ${dur(sleep.targetMin)})`, sleep.avgMin >= sleep.targetMin - 30 ? C.accent : C.warn))
+    body.push(kv('หนี้การนอน', dur(sleep.debtMin), sleep.debtMin >= 360 ? C.bad : sleep.debtMin >= 180 ? C.warn : C.accent))
+    if (sleep.regularity) body.push(kv('ความสม่ำเสมอ', `${sleep.regularity} (±${Math.round((sleep.midSdMin ?? 0) / 6) / 10} ชม.)`, sleep.regularity.startsWith('แกว่ง') ? C.warn : C.accent))
+  }
   const footer = warnings.map((x) => txt(x, { size: 'xs', color: C.warn }))
   return bubble('📊 รายงานสัปดาห์', `${dayLabel(w.from)} – ${dayLabel(w.to)}`, body, footer)
 }
@@ -187,4 +195,38 @@ export function shoesFlex(s: ShoeStore, acts: IcuActivity[]): Node {
   if (retired.length) body.push(sep(), txt(`ปลดระวางแล้ว: ${retired.map((x) => `${x.name} (${x.km} กม.)`).join(', ')}`, { size: 'xxs', color: C.sub, margin: 'md' }))
   body.push(sep(), txt('คำสั่ง: รองเท้า เพิ่ม <ชื่อ> [กม.] · รองเท้า ใช้ <ชื่อ> · รองเท้า ปลด <ชื่อ>', { size: 'xxs', color: C.sub, margin: 'md' }))
   return bubble('👟 รองเท้า', `นับทุกการวิ่งให้คู่ที่ใช้อยู่ · ควรเปลี่ยนที่ ~${s.limitKm} กม.`, body)
+}
+
+// ── การ์ดการนอน ──
+export function sleepFlex(st: SleepStats, advice: string[]): Node {
+  const target = st.targetMin
+  const max = Math.max(target + 60, ...st.nights7.map((n) => n.asleepMin))
+  const rows = st.nights7.map((n) =>
+    box(
+      'horizontal',
+      [
+        txt(dayLabel(n.date), { color: C.sub, size: 'xs', flex: 3 }),
+        bar(Math.min(n.asleepMin, target) / 60, target / 60, max / 60, n.asleepMin >= target - 30 ? C.accent : n.asleepMin >= 300 ? C.warn : C.bad),
+        txt(`${dur(n.asleepMin).replace(' ชม.', 'ช').replace(' น.', 'น')}`, { size: 'xs', align: 'end', flex: 3 }),
+      ],
+      { margin: 'sm' },
+    ),
+  )
+  const last = st.last
+  const body: Node[] = [
+    box('baseline', [txt(last ? dur(last.asleepMin) : '—', { size: 'xxl', weight: 'bold', color: last && last.asleepMin >= target - 30 ? C.accent : C.warn, flex: 0 }), txt(' ล่าสุด', { color: C.sub, flex: 0, margin: 'sm' })]),
+    txt(last ? `${dayLabel(last.date)} · ${last.start}–${last.end}${last.inBedMin ? ` · หลับจริง ${Math.round((last.asleepMin / last.inBedMin) * 100)}%` : ''}${last.napMin ? ` · งีบ ${last.napMin} น.` : ''}` : 'ยังไม่มีข้อมูล', { color: C.sub, size: 'xs' }),
+    sep(),
+    kv('หนี้การนอน 7 วัน', dur(st.debtMin), st.debtMin >= 360 ? C.bad : st.debtMin >= 180 ? C.warn : C.accent),
+    ...(st.avgMin != null ? [kv('เฉลี่ย/วัน', `${dur(st.avgMin)} · เป้า ${dur(target)}`)] : []),
+    ...(st.regularity ? [kv('ความสม่ำเสมอ', `${st.regularity}${st.midMin != null ? ` · กลางการนอน ~${hm(st.midMin)}` : ''}`, st.regularity.startsWith('แกว่ง') ? C.warn : C.accent)] : []),
+    ...(st.effPct != null ? [kv('หลับจริงเฉลี่ย', `${st.effPct}%`, st.effPct < 85 ? C.warn : C.text)] : []),
+    sep(),
+    txt('7 วันล่าสุด (แถบเทา = ขาดจากเป้า)', { size: 'xxs', color: C.sub, margin: 'md' }),
+    ...rows,
+    sep(),
+    txt('💡 คำแนะนำ', { weight: 'bold', margin: 'md' }),
+    ...advice.map((a) => txt(`• ${a}`, { size: 'xs', margin: 'xs' })),
+  ]
+  return bubble('😴 โค้ชการนอน', 'จาก Google Health · นับตามวันที่ตื่น', body)
 }

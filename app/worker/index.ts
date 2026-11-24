@@ -9,7 +9,7 @@ import { IntervalsClient } from '../src/coach/intervals'
 import { loadAndAnalyze, commitReport, answerQuestion, injuryNote } from '../src/coach/runner'
 import { lightDot } from '../src/coach/engine'
 import { MENU, MORE, dayLabel, flex, linePush, lineReply, plannedFor, questionMessages, text, workoutLines } from '../src/coach/line'
-import type { LineMessage } from '../src/coach/line'
+import type { LineMessage, QuickItem } from '../src/coach/line'
 import {
   activeShoe,
   findShoe,
@@ -30,8 +30,11 @@ import type { AiEnv } from '../src/coach/aiCoach'
 import { aiTrace } from '../src/coach/aiCoach'
 import { addDays, daysBetween, dowOf } from '../src/engine/trainingEngine'
 import { busyNotes, describeBusy, endBusy, rangeLabel, setBusy, setShort } from '../src/coach/busy'
-import { accessToken, authUrl, checkIdentity, exchangeCode, fmtNight, sleepFormatProbe, syncSleep } from '../src/coach/googleHealth'
-import type { GoogleCreds } from '../src/coach/googleHealth'
+import { authUrl, checkIdentity, exchangeCode, fmtNight, syncSleep } from '../src/coach/googleHealth'
+import type { GoogleCreds, SleepStore } from '../src/coach/googleHealth'
+import { loadSleepStore } from '../src/coach/googleHealth'
+import { bedtimeFor, dur, kindFromName, napPlan, sleepAdvice, sleepStats, wakeTimesFrom } from '../src/coach/sleepCoach'
+import { sleepFlex } from '../src/coach/flex'
 import { fmtHMS } from '../src/lib/time'
 
 export interface Env extends AiEnv {
@@ -69,7 +72,7 @@ async function checkState(env: Env, state: string | null): Promise<boolean> {
   return (await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}`)) === sig
 }
 
-async function runSleepSync(env: Env, days = 4): Promise<{ ok: boolean; text: string }> {
+async function runSleepSync(env: Env, days = 4): Promise<{ ok: boolean; text: string; store?: SleepStore }> {
   const creds = googleCreds(env)
   const refresh = await env.KV?.get(KV_REFRESH)
   if (!creds || !refresh || !env.KV) return { ok: false, text: 'ยังไม่ได้เชื่อม Google Health' }
@@ -78,7 +81,7 @@ async function runSleepSync(env: Env, days = 4): Promise<{ ok: boolean; text: st
     const r = await syncSleep(client, creds, refresh, todayBkk(), days)
     await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: true, nights: r.written }))
     const lines = r.nights.slice(-5).map((n) => `${dayLabel(n.date)}  ${fmtNight(n)}`)
-    return { ok: true, text: lines.length ? lines.join('\n') : 'ยังไม่มีข้อมูลการนอนใน 4 วันล่าสุด' }
+    return { ok: true, text: lines.length ? lines.join('\n') : 'ยังไม่มีข้อมูลการนอนใน 4 วันล่าสุด', store: r.store }
   } catch (e) {
     const msg = (e as Error).message.slice(0, 200)
     await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: false, error: msg }))
@@ -97,7 +100,7 @@ interface LineEvent {
   replyToken?: string
   source?: { userId?: string }
   message?: { type: string; text?: string }
-  postback?: { data: string; params?: { date?: string } }
+  postback?: { data: string; params?: { date?: string; time?: string } }
 }
 
 const todayBkk = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)
@@ -174,6 +177,62 @@ async function doBusy(env: Env, to: string, today: string): Promise<LineMessage[
   return [text(describeBusy(r.period, r.merged), AFTER_BUSY)]
 }
 
+// ── 😴 โค้ชการนอน ──
+const KV_WAKE = 'wake_notified'
+const nowMs = () => Date.now()
+const hhmmNow = (plusMin = 0) => new Date(Date.now() + 7 * 3600e3 + plusMin * 60000).toISOString().slice(11, 16)
+
+function sleepQuick(): QuickItem[] {
+  return [
+    { label: '🛏 ต้องตื่นกี่โมง?', data: 'sleep|wake', pickTime: { initial: hhmmNow(8 * 60).replace(/:\d\d$/, ':00') } },
+    { label: '⏰ จะนอนตอนนี้', text: 'นอนตอนนี้' },
+    { label: '😪 งีบ', text: 'งีบ' },
+    { label: '😴 การ์ดการนอน', text: 'การนอน' },
+    { label: '🎯 เป้าการนอน', text: 'เป้าการนอน' },
+  ]
+}
+
+async function todayKind(client: IntervalsClient, today: string) {
+  const evs = plannedFor(await client.events(today, today), today)
+  return evs.length ? kindFromName(evs.map((e) => e.name ?? '').join(' ')) : 'rest'
+}
+
+function bedtimeText(wake: string, st: ReturnType<typeof sleepStats>): string {
+  const p = bedtimeFor(wake, st, nowMs())
+  const L = [`🛏 ต้องตื่น ${wake} — ควรเข้านอน:`]
+  for (const o of p.options) L.push(`${o.recommended ? '⭐' : '•'} ${o.bed}  (${o.cycles} รอบ = ${dur(o.sleepMin)})${o.tooLate ? ' · ไม่ทันแล้ว' : ''}`)
+  L.push('', `เผื่อเวลากว่าจะหลับ ~${p.latencyMin} นาที (จากข้อมูลจริงของคุณ)`, `☕ งดคาเฟอีนหลัง ${p.caffeineCutoff}`)
+  if (st.debtMin >= 180) L.push(`หนี้การนอนตอนนี้ ${dur(st.debtMin)} — ถ้าเลือกได้ เอาตัวที่ได้ 6 รอบ`)
+  L.push('ตื่นตรงจังหวะจบรอบ (90 นาที) จะงัวเงียน้อยกว่า')
+  return L.join('\n')
+}
+
+/** ตรวจว่าเพิ่งตื่น → ส่ง "☀️ ตื่นแล้ว" ครั้งเดียวต่อวัน */
+async function wakeCheck(env: Env) {
+  if (!env.LINE_USER_ID || !env.KV) return
+  const r = await runSleepSync(env, 2)
+  const last = r.store?.nights.at(-1)
+  const today = todayBkk()
+  if (!last || last.date !== today || !last.endMs || Date.now() - last.endMs > 8 * 3600e3) return
+  if ((await env.KV.get(KV_WAKE)) === today) return
+  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  const cfg = await client.loadConfig()
+  if (!cfg) return
+  await env.KV.put(KV_WAKE, today)
+  const st = sleepStats(r.store!.nights, today, cfg.sleepTargetMin)
+  const data = await loadAndAnalyze(client, cfg, today)
+  await commitReport(client, cfg, data, today)
+  const fresh = await loadAndAnalyze(client, cfg, today)
+  const evs = plannedFor(fresh.events, today)
+  const kind = evs.length ? kindFromName(evs.map((e) => e.name ?? '').join(' ')) : 'rest'
+  const L = [`☀️ ตื่นแล้ว · นอน ${dur(last.asleepMin)} (${last.start}–${last.end})`, `หนี้การนอน 7 วัน ${dur(st.debtMin)} · ${lightDot(fresh.report.overall)} แบตเตอรี่`, '']
+  L.push(...sleepAdvice(st, kind).slice(0, 3).map((a) => `💡 ${a}`), '')
+  if (evs.length) for (const e of evs) L.push(`📅 วันนี้: ${e.name}`, workoutLines(e))
+  else L.push('📅 วันนี้พัก / เดินเบา ๆ')
+  const qs = fresh.openQuestions.filter((q) => q.date === today)
+  await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, env.LINE_USER_ID, [text(L.join('\n').trim(), sleepQuick()), ...questionMessages(qs)].slice(0, 5))
+}
+
 let workerOrigin = 'https://raceplan-line-bot.sicasica03.workers.dev'
 
 async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
@@ -187,6 +246,14 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   const cfg = await client.loadConfig()
   if (!cfg) return [text('ยังไม่ได้ตั้งค่าโค้ช — เปิดแอปคู่ซ้อม แท็บซ้อม → โค้ช & Garmin แล้วกดบันทึก', MENU)]
   const today = todayBkk()
+
+  // ปุ่มเลือกเวลาตื่น
+  if (ev.type === 'postback' && ev.postback?.data === 'sleep|wake') {
+    const t = ev.postback.params?.time
+    if (!t) return [text('ไม่ได้เลือกเวลา', sleepQuick())]
+    const store = await loadSleepStore(client)
+    return [text(bedtimeText(t, sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)), sleepQuick())]
+  }
 
   // ปุ่ม 💼 ติดงาน
   if (ev.type === 'postback' && ev.postback?.data.startsWith('busy|')) {
@@ -211,9 +278,45 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const url = `${workerOrigin}/google/login?state=${await makeState(env)}`
     return [text(`🔗 เชื่อม Google Health (ดึงการนอน)\nแตะลิงก์นี้ภายใน 20 นาที → เลือกบัญชี Google ที่ใช้กับแอป Google Health → อนุญาต\n(ถ้าขึ้น "Google hasn't verified this app" กด Advanced → Go to … แล้วไปต่อ เพราะเป็นแอปส่วนตัวของคุณเอง)\n\n${url}`)]
   }
-  if (/^(การนอน|นอน|sleep|ซิงก์การนอน)$/i.test(msg)) {
+  if (/^(การนอน|นอน|sleep|ซิงก์การนอน|โค้ชการนอน|การ์ดการนอน)$/i.test(msg)) {
     const r = await runSleepSync(env)
-    return [text(r.ok ? `😴 การนอนจาก Google Health (อัปเดตลงโค้ชแล้ว)\n${r.text}` : `😴 ${r.text}${/เชื่อม/.test(r.text) ? '\nพิมพ์ "เชื่อม google" เพื่อเริ่ม' : ''}`, MENU)]
+    if (!r.ok) return [text(`😴 ${r.text}${/เชื่อม/.test(r.text) ? '\nพิมพ์ "เชื่อม google" เพื่อเริ่ม' : ''}`, MENU)]
+    const st = sleepStats(r.store?.nights ?? [], today, cfg.sleepTargetMin)
+    const advice = sleepAdvice(st, await todayKind(client, today))
+    return [flex(`😴 นอนล่าสุด ${st.last ? dur(st.last.asleepMin) : '-'} · หนี้ ${dur(st.debtMin)}`, sleepFlex(st, advice), sleepQuick())]
+  }
+  if (/^(นอนกี่โมงดี|คำนวณเวลานอน|ควรนอนกี่โมง|นอนกี่โมง)$/.test(msg)) {
+    return [text('🛏 ต้องตื่นกี่โมงครับ? กดเลือกเวลา หรือพิมพ์เช่น "ตื่น 14:00"', sleepQuick())]
+  }
+  const wakeM = /^(?:ต้อง)?ตื่น\s*(?:ตอน|เวลา)?\s*(\d{1,2})(?:[:.](\d{2}))?\s*(?:น\.?|นาฬิกา)?$/.exec(msg)
+  if (wakeM) {
+    const h = Number(wakeM[1])
+    if (h > 23) return [text('ใส่เวลาแบบ 24 ชม. เช่น "ตื่น 14:00"', sleepQuick())]
+    const wake = `${String(h).padStart(2, '0')}:${wakeM[2] ?? '00'}`
+    const store = await loadSleepStore(client)
+    return [text(bedtimeText(wake, sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)), sleepQuick())]
+  }
+  if (/^(นอนตอนนี้|จะนอนแล้ว|ไปนอน|จะนอน|นอนเลย)$/.test(msg)) {
+    const store = await loadSleepStore(client)
+    const st = sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)
+    const opts = wakeTimesFrom(nowMs(), st)
+    const best = st.debtMin >= 180 ? 6 : 5
+    return [text([`⏰ ถ้านอนตอนนี้ (${hhmmNow()}) ตั้งปลุก:`, ...opts.map((o) => `${o.cycles === best ? '⭐' : '•'} ${o.wake}  (${o.cycles} รอบ = ${dur(o.sleepMin)})`), '', `เผื่อเวลากว่าจะหลับ ~${st.latencyMin} นาทีแล้ว`, 'ปิดไฟ ห้องเย็น วางมือถือห่างตัว 🌙 ฝันดีครับ'].join('\n'), sleepQuick())]
+  }
+  if (/^(งีบ|nap|จะงีบ)$/i.test(msg)) {
+    const store = await loadSleepStore(client)
+    const st = sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)
+    const n = napPlan(nowMs(), st)
+    return [text([`😪 งีบตอนนี้ (${hhmmNow()}) ตั้งปลุก:`, `${n.preferFull ? '•' : '⭐'} ${n.power} — งีบสั้น 20 นาที ตื่นมาไม่งัวเงีย`, `${n.preferFull ? '⭐' : '•'} ${n.full} — งีบเต็มรอบ 90 นาที${n.preferFull ? ' (แนะนำ เพราะหนี้การนอนสูง/เมื่อคืนนอนน้อย)' : ''}`, '', 'เลี่ยงงีบ 30–60 นาที (ตื่นกลางหลับลึก จะมึน)', 'ถ้าจะซ้อมหนักหลังงีบ เผื่อเวลาตื่นตัว 20–30 นาที'].join('\n'), sleepQuick())]
+  }
+  const tgt = /^(?:เป้าการนอน|เป้านอน|นอน ?เป้า)\s*(\d+(?:\.\d+)?)?\s*(?:ชม\.?|ชั่วโมง)?$/.exec(msg)
+  if (tgt) {
+    const cur = (cfg.sleepTargetMin ?? 450) / 60
+    if (!tgt[1]) return [text(`🎯 เป้าการนอนตอนนี้ ${cur} ชม./วัน\nเปลี่ยนได้โดยพิมพ์ เช่น "เป้าการนอน 8"`, [{ label: '7 ชม.', text: 'เป้าการนอน 7' }, { label: '7.5 ชม.', text: 'เป้าการนอน 7.5' }, { label: '8 ชม.', text: 'เป้าการนอน 8' }, { label: '8.5 ชม.', text: 'เป้าการนอน 8.5' }])]
+    const h = Number(tgt[1])
+    if (h < 5 || h > 10) return [text('ตั้งได้ระหว่าง 5–10 ชม. ครับ')]
+    await client.saveConfig({ ...cfg, sleepTargetMin: Math.round(h * 60) })
+    return [text(`🎯 ตั้งเป้าการนอน ${h} ชม./วัน แล้ว — หนี้การนอนและคำแนะนำจะคิดจากเป้านี้`, sleepQuick())]
   }
   // 💼 ติดงาน / ⏱ วิ่งสั้น / ✅ กลับมาซ้อม
   if (/^(ติดงาน|ไม่ว่าง|busy)$/i.test(msg)) {
@@ -336,7 +439,8 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const [acts, wellness, store] = await Promise.all([client.activities(addDays(today, -70), today), client.wellness(addDays(today, -21), today), loadShoes(client)])
     const shoeActs = store.shoes.length ? await client.activities(shoesOldest(store, today), today) : []
     const w = weeklyData(data.events, acts, wellness, cfg, today)
-    return [flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs)), MENU)]
+    const ss = await loadSleepStore(client).catch(() => null)
+    return [flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs), ss ? sleepStats(ss.nights, today, cfg.sleepTargetMin) : undefined), MENU)]
   }
 
   if (/^(สัปดาห์|week|7 ?วัน|7 วันข้างหน้า)$/i.test(msg)) {
@@ -403,7 +507,16 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   if (msg.length < 2) return [text(GREETING(cfg.planName), MENU)]
   const data = await loadAndAnalyze(client, cfg, today)
   const acts = await client.activities(addDays(today, -21), today)
-  const ctx = buildContext(data, cfg, acts, today)
+  const sleepStore = await loadSleepStore(client).catch(() => null)
+  const sst = sleepStore ? sleepStats(sleepStore.nights, today, cfg.sleepTargetMin) : null
+  const sleepCtx = sst
+    ? [
+        `การนอน (Google Health, เป้า ${dur(sst.targetMin)}/วัน, เจ้าของเปิดร้านอาหาร 24 ชม. เวลานอนไม่ตายตัว):`,
+        ...sst.nights7.map((n) => `- ตื่น ${n.date}: ${n.start}–${n.end} หลับ ${dur(n.asleepMin)}${n.napMin ? ` + งีบ ${n.napMin} น.` : ''}`),
+        `หนี้การนอน 7 วัน ${dur(sst.debtMin)} · ความสม่ำเสมอ ${sst.regularity ?? '-'} · หลับจริงเฉลี่ย ${sst.effPct ?? '-'}% · กว่าจะหลับ ~${sst.latencyMin} นาที`,
+      ]
+    : []
+  const ctx = buildContext(data, cfg, acts, today, sleepCtx)
   const hist = await loadHist(userId)
   try {
     const answer = await askCoach(env, msg.slice(0, 600), ctx, hist)
@@ -453,9 +566,10 @@ export default {
       const st = await env.KV?.get(KV_STATUS)
       const refresh = await env.KV?.get(KV_REFRESH)
       const creds = googleCreds(env)
-      let probe: unknown = null
-      if (refresh && creds) probe = await accessToken(creds, refresh).then((t) => sleepFormatProbe(t, addDays(todayBkk(), -3))).catch((e) => ({ error: (e as Error).message.slice(0, 120) }))
-      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, probe })
+      const ss = refresh ? await loadSleepStore(new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)).catch(() => null) : null
+      const ln = ss?.nights.at(-1)
+      const wake = ln ? { nights: ss!.nights.length, lastIsToday: ln.date === todayBkk(), minsSinceEnd: ln.endMs ? Math.round((Date.now() - ln.endMs) / 60000) : null, notifiedToday: (await env.KV?.get(KV_WAKE)) === todayBkk() } : null
+      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, wake })
     }
     if (payload.selftest) {
       const t0 = Date.now()
@@ -492,6 +606,6 @@ export default {
 
   /** cron (เวลา UTC ใน wrangler.toml): ดึงการนอนจาก Google Health ก่อนงานโค้ชตอนเช้า/คืน */
   async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runSleepSync(env).then(() => undefined))
+    ctx.waitUntil(wakeCheck(env).catch(() => undefined))
   },
 }

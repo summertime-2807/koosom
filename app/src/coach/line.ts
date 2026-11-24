@@ -12,6 +12,8 @@ export interface QuickItem {
   data?: string
   /** ปุ่มเลือกวันที่ (datetimepicker) — ส่ง postback data + params.date */
   pickDate?: { initial: string; min: string; max: string }
+  /** ปุ่มเลือกเวลา — ส่ง postback data + params.time (HH:mm) */
+  pickTime?: { initial: string }
 }
 export type QuickReply = { items: unknown[] }
 export type LineMessage =
@@ -28,6 +30,8 @@ function quickReply(quick?: QuickItem[]): QuickReply | undefined {
       type: 'action',
       action: q.pickDate
         ? { type: 'datetimepicker', label: cut(q.label, 20), data: q.data ?? 'pick', mode: 'date', ...q.pickDate }
+        : q.pickTime
+        ? { type: 'datetimepicker', label: cut(q.label, 20), data: q.data ?? 'pick', mode: 'time', ...q.pickTime }
         : q.data
         ? { type: 'postback', label: cut(q.label, 20), data: q.data, displayText: q.text ?? q.label }
         : { type: 'message', label: cut(q.label, 20), text: q.text ?? q.label },
@@ -69,7 +73,8 @@ export const MORE: QuickItem[] = [
   { label: '⏱ การ์ดเพซ', text: 'การ์ดเพซ' },
   { label: '🏅 วิเคราะห์ผลแข่ง', text: 'ผลแข่ง' },
   { label: '👟 รองเท้า', text: 'รองเท้า' },
-  { label: '😴 การนอน (Google)', text: 'การนอน' },
+  { label: '😴 โค้ชการนอน', text: 'การนอน' },
+  { label: '🛏 นอนกี่โมงดี', text: 'นอนกี่โมงดี' },
   { label: '🎯 เป้า & ความพร้อม', text: 'เป้า' },
   { label: '❓ คำถามค้าง', text: 'คำถาม' },
   { label: '🔄 ซิงก์', text: 'ซิงก์' },
