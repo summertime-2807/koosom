@@ -67,6 +67,9 @@ function clean(s: string): string {
     .trim()
 }
 
+/** ลองตามลำดับ — gemma 3 ภาษาไทยดีกว่า llama */
+const AI_MODELS = ['@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']
+
 export async function askCoach(env: AiEnv, question: string, context: string, history: { q: string; a: string }[] = []): Promise<string> {
   const prompt = `ข้อมูลนักวิ่ง:\n${context}\n\nคำถาม: ${question}`
   if (env.GEMINI_API_KEY) {
@@ -98,7 +101,16 @@ export async function askCoach(env: AiEnv, question: string, context: string, hi
     ]),
     { role: 'user', content: prompt },
   ]
-  const out = (await env.AI.run('@cf/google/gemma-3-12b-it', { messages, max_tokens: 700, temperature: 0.5 })) as { response?: string }
-  if (!out?.response) throw new Error('AI ไม่ตอบ')
-  return clean(out.response)
+  let lastErr = ''
+  for (const model of AI_MODELS) {
+    try {
+      const out = (await env.AI.run(model, { messages, max_tokens: 700, temperature: 0.5 })) as { response?: unknown; choices?: { message?: { content?: string } }[] }
+      const t = typeof out?.response === 'string' ? out.response : out?.choices?.[0]?.message?.content
+      if (t && t.trim()) return clean(t)
+      lastErr = `${model}: ว่าง ${JSON.stringify(out).slice(0, 80)}`
+    } catch (e) {
+      lastErr = `${model}: ${(e as Error).message.slice(0, 100)}`
+    }
+  }
+  throw new Error(lastErr || 'AI ไม่ตอบ')
 }

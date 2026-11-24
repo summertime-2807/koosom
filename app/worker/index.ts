@@ -257,7 +257,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     await saveHist(userId, [...hist, { q: msg.slice(0, 300), a: answer.slice(0, 800) }])
     return [text(`💬 ${answer}`, MENU)]
   } catch (e) {
-    return [text(`ขอโทษครับ โค้ช AI ตอบไม่ได้ตอนนี้ (${(e as Error).message.slice(0, 60)})\nลองใช้คำสั่งในเมนูก่อนได้ครับ`, MENU)]
+    return [text(`ขอโทษครับ โค้ช AI ตอบไม่ได้ตอนนี้ (${(e as Error).message.slice(0, 160)})\nลองใช้คำสั่งในเมนูก่อนได้ครับ`, MENU)]
   }
 }
 
@@ -282,7 +282,7 @@ export default {
         const vtxt = v.ok ? '' : (await v.text()).slice(0, 300)
         const first = msgs[0]
         const preview = first?.type === 'text' ? first.text.slice(0, 2) : first?.altText.slice(0, 2)
-        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, count: msgs.length, types: msgs.map((m) => m.type), valid: v.status, error: vtxt || undefined, ai: first?.type === 'text' && first.text.startsWith('💬'), aiFail: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้'), lead: preview })
+        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, count: msgs.length, types: msgs.map((m) => m.type), valid: v.status, error: vtxt || undefined, ai: first?.type === 'text' && first.text.startsWith('💬'), aiFail: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้'), aiErr: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้') ? /\(([^)]*)\)/.exec(first.text)?.[1] : undefined, lead: preview })
       } catch (e) {
         return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, thrown: (e as Error).message.slice(0, 200) })
       }
