@@ -1,13 +1,14 @@
-"""สร้างรูป Rich menu ของคู่ซ้อม (2500x843, 3x2 ปุ่ม)"""
+"""สร้างรูป Rich menu ของคู่ซ้อม (2500x843, 4x2 ปุ่ม)"""
 import sys
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 2500, 843
-CW, CH = W // 3, H // 2
+COLS = 4
+CW, CH = W // COLS, H // 2
 FONT = "/tmp/fonts/package/files/noto-sans-thai-thai-{}-normal.woff"
 LAT = "/tmp/fonts/package/files/noto-sans-thai-latin-{}-normal.woff"
-big = (ImageFont.truetype(FONT.format(700), 92), ImageFont.truetype(LAT.format(700), 92))
-small = (ImageFont.truetype(FONT.format(500), 50), ImageFont.truetype(LAT.format(500), 50))
+big = (ImageFont.truetype(FONT.format(700), 84), ImageFont.truetype(LAT.format(700), 84))
+small = (ImageFont.truetype(FONT.format(500), 40), ImageFont.truetype(LAT.format(500), 40))
 
 BG = (15, 23, 42)
 CELL = (30, 41, 59)
@@ -47,6 +48,15 @@ def icon(kind, cx, cy, col):
         d.line([cx - s, cy + s, cx + s, cy + s], fill=col, width=w)
         d.line([cx - s, cy - s, cx - s, cy + s], fill=col, width=w)
         d.line([cx - 44, cy + 30, cx - 10, cy - 4, cx + 16, cy + 16, cx + 56, cy - 40], fill=col, width=w, joint="curve")
+    elif kind == "sync":  # ลูกศรวนสองทาง
+        d.arc([cx - s, cy - s, cx + s, cy + s], 200, 340, fill=col, width=w)
+        d.arc([cx - s, cy - s, cx + s, cy + s], 20, 160, fill=col, width=w)
+        d.polygon([(cx + s - 2, cy - 44), (cx + s + 24, cy - 8), (cx + s - 34, cy - 2)], fill=col)
+        d.polygon([(cx - s + 2, cy + 44), (cx - s - 24, cy + 8), (cx - s + 34, cy + 2)], fill=col)
+    elif kind == "busy":  # กระเป๋าทำงาน
+        d.rounded_rectangle([cx - s, cy - 30, cx + s, cy + s - 6], 14, outline=col, width=w)
+        d.rounded_rectangle([cx - 30, cy - 58, cx + 30, cy - 26], 10, outline=col, width=w)
+        d.line([cx - s, cy + 8, cx + s, cy + 8], fill=col, width=w)
     elif kind == "more":
         for y in (cy - 36, cy, cy + 36):
             d.rounded_rectangle([cx - s, y - 6, cx + s, y + 6], 6, fill=col)
@@ -72,20 +82,22 @@ cells = [
     ("today", "วันนี้", "ซ้อมอะไรดี", ACCENT),
     ("week", "สัปดาห์", "7 วันข้างหน้า", ACCENT),
     ("battery", "สรุป", "แบต & ความพร้อม", ACCENT),
+    ("sync", "ซิงก์", "อัปเดตทั้งหมด", ACCENT),
     ("chat", "ถามโค้ช", "AI ตอบจากข้อมูลจริง", ACC2),
     ("report", "รายงาน", "สรุปสัปดาห์นี้", ACC2),
-    ("more", "เพิ่มเติม", "ติดงาน · แข่ง · รองเท้า", ACC2),
+    ("busy", "ติดงาน", "ข้าม/วิ่งสั้น", ACC2),
+    ("more", "เพิ่มเติม", "แข่ง · รองเท้า · นอน", ACC2),
 ]
 
 for i, (kind, label, sub, col) in enumerate(cells):
-    c, r = i % 3, i // 3
-    x0, y0 = c * CW + 14, r * CH + 14
-    x1, y1 = (c + 1) * CW - 14, (r + 1) * CH - 14
-    d.rounded_rectangle([x0, y0, x1, y1], 36, fill=CELL)
-    icon(kind, x0 + 140, (y0 + y1) // 2, col)
-    tx = x0 + 250
-    mixed((tx, (y0 + y1) // 2 - 22), label, big, TXT)
-    mixed((tx, (y0 + y1) // 2 + 62), sub, small, SUB)
+    c, r = i % COLS, i // COLS
+    x0, y0 = c * CW + 12, r * CH + 12
+    x1, y1 = (c + 1) * CW - 12, (r + 1) * CH - 12
+    d.rounded_rectangle([x0, y0, x1, y1], 32, fill=CELL)
+    icon(kind, x0 + 115, (y0 + y1) // 2, col)
+    tx = x0 + 205
+    mixed((tx, (y0 + y1) // 2 - 14), label, big, TXT)
+    mixed((tx, (y0 + y1) // 2 + 56), sub, small, SUB)
 
 out = sys.argv[1] if len(sys.argv) > 1 else "richmenu.png"
 img.save(out, optimize=True)

@@ -51,13 +51,13 @@ export function flex(altText: string, contents: unknown, quick?: QuickItem[]): L
 }
 
 export const MENU: QuickItem[] = [
+  { label: '🔄 ซิงก์', text: 'ซิงก์' },
   { label: '📅 วันนี้ซ้อมอะไร', text: 'วันนี้' },
   { label: '🗓 7 วันข้างหน้า', text: 'สัปดาห์' },
   { label: '🔋 แบตเตอรี่/สรุป', text: 'สรุป' },
   { label: '📊 รายงานสัปดาห์', text: 'รายงาน' },
   { label: '💬 ถามโค้ช AI', text: 'ถามโค้ช' },
   { label: '❓ คำถามค้าง', text: 'คำถาม' },
-  { label: '↻ ซิงก์ & ปรับตาราง', text: 'ซิงก์' },
   { label: '🩹 แจ้งเจ็บ', text: 'เจ็บ ' },
 ]
 
@@ -72,7 +72,7 @@ export const MORE: QuickItem[] = [
   { label: '😴 การนอน (Google)', text: 'การนอน' },
   { label: '🎯 เป้า & ความพร้อม', text: 'เป้า' },
   { label: '❓ คำถามค้าง', text: 'คำถาม' },
-  { label: '↻ ซิงก์ & ปรับตาราง', text: 'ซิงก์' },
+  { label: '🔄 ซิงก์', text: 'ซิงก์' },
   { label: '🩹 แจ้งเจ็บ', text: 'เจ็บ ' },
 ]
 

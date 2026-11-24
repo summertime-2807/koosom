@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 // ตั้งเมนูถาวร (Rich menu) ของ LINE OA คู่ซ้อม
-// รูป: assets/richmenu.png (2500×843, 3×2 ปุ่ม) สร้างด้วย scripts/richmenu-image.py
+// รูป: assets/richmenu.png (2500×843, 4×2 ปุ่ม) สร้างด้วย scripts/richmenu-image.py
 // รันผ่าน GitHub Actions (.github/workflows/richmenu.yml) — ใช้ secret LINE_CHANNEL_ACCESS_TOKEN
 // ─────────────────────────────────────────────────────────────
 import { readFileSync } from 'node:fs'
@@ -9,15 +9,18 @@ const token = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim()
 const NAME = 'koosom-main'
 const W = 2500
 const H = 843
-const CW = Math.floor(W / 3)
+const COLS = 4
+const CW = Math.floor(W / COLS)
 const CH = Math.floor(H / 2)
 
 const buttons = [
   { label: 'วันนี้', text: 'วันนี้' },
   { label: 'สัปดาห์', text: 'สัปดาห์' },
   { label: 'สรุป', text: 'สรุป' },
+  { label: 'ซิงก์', text: 'ซิงก์' },
   { label: 'ถามโค้ช', text: 'ถามโค้ช' },
   { label: 'รายงาน', text: 'รายงาน' },
+  { label: 'ติดงาน', text: 'ติดงาน' },
   { label: 'เพิ่มเติม', text: 'เพิ่มเติม' },
 ]
 
@@ -39,7 +42,7 @@ async function main() {
     name: NAME,
     chatBarText: 'เมนูคู่ซ้อม',
     areas: buttons.map((b, i) => ({
-      bounds: { x: (i % 3) * CW, y: Math.floor(i / 3) * CH, width: i % 3 === 2 ? W - 2 * CW : CW, height: i >= 3 ? H - CH : CH },
+      bounds: { x: (i % COLS) * CW, y: Math.floor(i / COLS) * CH, width: i % COLS === COLS - 1 ? W - (COLS - 1) * CW : CW, height: i >= COLS ? H - CH : CH },
       action: { type: 'message', label: b.label, text: b.text },
     })),
   }

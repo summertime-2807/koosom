@@ -49,6 +49,7 @@ export interface Env extends AiEnv {
 const REDIRECT_PATH = '/google/callback'
 const KV_REFRESH = 'google_refresh_token'
 const KV_STATUS = 'google_sleep_status'
+const KV_LAST_SYNC = 'last_manual_sync'
 
 const googleCreds = (env: Env): GoogleCreds | null => (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : null)
 
@@ -361,11 +362,27 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     return questionMessages(data.openQuestions)
   }
 
-  if (/^(ซิงก์|sync|ปรับตาราง)$/i.test(msg)) {
+  if (/^(ซิงก์|ซิงค์|sync|ปรับตาราง|🔄 ?ซิงก์|อัปเดต|อัพเดท)$/i.test(msg)) {
+    // 1) การนอนจาก Google Health  2) ผลวิ่ง/HRV ล่าสุดที่ Garmin ส่งเข้า Intervals  3) โค้ชปรับตาราง  4) สรุป
+    const sleep = env.KV && (await env.KV.get(KV_REFRESH)) ? await runSleepSync(env, 2) : null
+    const lastIso = (await env.KV?.get(KV_LAST_SYNC)) ?? ''
     const data = await loadAndAnalyze(client, cfg, today)
     const r = await commitReport(client, cfg, data, today)
     const fresh = await loadAndAnalyze(client, cfg, today)
-    return [text(`${r.applied ? `🔧 ปรับตาราง ${r.applied} รายการ\n\n` : ''}${fresh.report.summary}`, MENU), ...questionMessages(fresh.openQuestions)].slice(0, 5)
+    const acts = (await client.activities(addDays(today, -3), today)).filter((a) => (a.distance ?? 0) > 0)
+    const newActs = lastIso ? acts.filter((a) => a.start_date_local > lastIso) : acts.slice(-3)
+    await env.KV?.put(KV_LAST_SYNC, nowBkkIso())
+    const L: string[] = ['🔄 ซิงก์แล้ว', '']
+    L.push(
+      newActs.length
+        ? `🏃 ${lastIso ? 'กิจกรรมใหม่' : 'กิจกรรมล่าสุด'}: ${newActs.map((a) => `${dayLabel(a.start_date_local.slice(0, 10))} ${a.name ?? 'Run'} ${((a.distance ?? 0) / 1000).toFixed(1)} กม.`).join(' · ')}`
+        : '🏃 ยังไม่มีกิจกรรมใหม่จาก Garmin (ถ้าเพิ่งวิ่งเสร็จ เปิดแอป Garmin Connect ให้ซิงก์ก่อน แล้วกดอีกครั้ง)',
+    )
+    if (sleep) L.push(sleep.ok ? `😴 การนอน: ${sleep.text.split('\n').slice(-1)[0]}` : `😴 การนอน: ${sleep.text}`)
+    L.push(r.applied ? `🔧 ปรับตาราง ${r.applied} รายการ` : '🔧 ตารางไม่ต้องปรับ')
+    L.push('', fresh.report.summary)
+    if (r.applied) L.push('', '⌚ เปิดแอป Garmin Connect ให้ซิงก์ workout ที่ปรับแล้วลงนาฬิกา')
+    return [text(L.join('\n'), MENU), ...questionMessages(fresh.openQuestions)].slice(0, 5)
   }
 
   const inj = /^(เจ็บ|ตึง|ปวด|บาดเจ็บ)(?:\s+(.*))?$/s.exec(msg)
