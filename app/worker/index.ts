@@ -108,7 +108,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', MORE)]
   if (/^(ถามโค้ช|โค้ช ?ai|ai)$/i.test(msg)) return [text('💬 พิมพ์คำถามมาได้เลยครับ เช่น\n• "ขาตึงนิดหน่อย พรุ่งนี้ควรวิ่งอินเทอร์วัลไหม"\n• "สัปดาห์นี้ซ้อมขาดไป 2 วัน ต้องชดเชยไหม"\n• "เป้า sub 2 ยังไหวไหม"')]
 
-  if (/^(วันนี้|ซ้อม|today|พรุ่งนี้)/i.test(msg)) {
+  if (/^(วันนี้|ซ้อม|ซ้อมอะไร|today|พรุ่งนี้|วันนี้ซ้อมอะไร)$/i.test(msg)) {
     const data = await loadAndAnalyze(client, cfg, today)
     const out: string[] = []
     for (const [label, d] of [
@@ -143,7 +143,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     return [flex(`⏱ การ์ดเพซ ${fmtHMS(cfg.goalSec)}`, paceCardFlex(info, paceCard(info, cfg.goalSec, weather)), MORE)]
   }
 
-  if (/^(ผลแข่ง|วิเคราะห์|review)/i.test(msg)) {
+  if (/^(ผลแข่ง|วิเคราะห์|วิเคราะห์ผลแข่ง|review)$/i.test(msg)) {
     const acts = await client.activities(addDays(today, -30), today)
     const r = await reviewLatest(client, cfg, acts)
     if (!r) return [text('ยังไม่มีการวิ่ง 5 กม.ขึ้นไปใน 30 วันให้วิเคราะห์', MENU)]
@@ -151,7 +151,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   }
 
   const shoeCmd = /^(รองเท้า|shoes?)\s*(เพิ่ม|add|ใช้|use|ปลด|retire|ลบ)?\s*(.*)$/is.exec(msg)
-  if (shoeCmd) {
+  if (shoeCmd && (shoeCmd[2] || !(shoeCmd[3] ?? '').trim())) {
     const verb = (shoeCmd[2] ?? '').toLowerCase()
     let rest = (shoeCmd[3] ?? '').trim()
     const store = await loadShoes(client)
@@ -194,7 +194,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     return [flex('👟 รองเท้า', shoesFlex(store, acts), shoeQuick())]
   }
 
-  if (/^(รายงาน|report|สรุปสัปดาห์)/i.test(msg)) {
+  if (/^(รายงาน|report|สรุปสัปดาห์|รายงานสัปดาห์)$/i.test(msg)) {
     const data = await loadAndAnalyze(client, cfg, today)
     const [acts, wellness, store] = await Promise.all([client.activities(addDays(today, -70), today), client.wellness(addDays(today, -21), today), loadShoes(client)])
     const shoeActs = store.shoes.length ? await client.activities(shoesOldest(store, today), today) : []
@@ -202,7 +202,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     return [flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs)), MENU)]
   }
 
-  if (/^(สัปดาห์|week|7 ?วัน)/i.test(msg)) {
+  if (/^(สัปดาห์|week|7 ?วัน|7 วันข้างหน้า)$/i.test(msg)) {
     const data = await loadAndAnalyze(client, cfg, today)
     const lines = ['🗓 7 วันข้างหน้า']
     for (let i = 0; i < 7; i++) {
