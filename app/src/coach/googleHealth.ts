@@ -155,3 +155,23 @@ export function fmtNight(n: NightSleep): string {
   const eff = n.inBedMin ? Math.round((n.asleepMin / n.inBedMin) * 100) : undefined
   return `${h} ชม. ${m} น. (${n.start}–${n.end}${eff ? ` · หลับจริง ${eff}%` : ''})`
 }
+
+/** ตรวจรูปแบบเวลา (ไม่คืนค่าเวลาจริง) — ใช้ debug เรื่อง timezone */
+export async function sleepFormatProbe(token: string, fromDate: string) {
+  const q = new URLSearchParams({ filter: `sleep.interval.civil_end_time >= "${fromDate}"`, pageSize: '3' })
+  const j = await gget<{ dataPoints?: SleepPoint[] }>(token, `/dataTypes/sleep/dataPoints:reconcile?${q}`)
+  const i = j.dataPoints?.[0]?.sleep?.interval as Record<string, unknown> | undefined
+  if (!i) return { points: 0 }
+  const st = String(i.startTime ?? '')
+  return {
+    points: j.dataPoints!.length,
+    keys: Object.keys(i),
+    startEndsZ: st.endsWith('Z'),
+    startHasOffset: /[+-]\d\d:?\d\d$/.test(st),
+    startLen: st.length,
+    startUtcOffset: i.startUtcOffset ?? null,
+    civilType: typeof i.civilStartTime,
+    civilKeys: i.civilStartTime && typeof i.civilStartTime === 'object' ? Object.keys(i.civilStartTime as object) : null,
+    utcHour: Number.isNaN(Date.parse(st)) ? null : new Date(Date.parse(st)).getUTCHours(),
+  }
+}

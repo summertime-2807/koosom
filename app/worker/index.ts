@@ -29,7 +29,7 @@ import { askCoach, buildContext } from '../src/coach/aiCoach'
 import type { AiEnv } from '../src/coach/aiCoach'
 import { aiTrace } from '../src/coach/aiCoach'
 import { addDays, daysBetween } from '../src/engine/trainingEngine'
-import { authUrl, checkIdentity, exchangeCode, fmtNight, syncSleep } from '../src/coach/googleHealth'
+import { accessToken, authUrl, checkIdentity, exchangeCode, fmtNight, sleepFormatProbe, syncSleep } from '../src/coach/googleHealth'
 import type { GoogleCreds } from '../src/coach/googleHealth'
 import { fmtHMS } from '../src/lib/time'
 
@@ -361,7 +361,11 @@ export default {
     // คืนเฉพาะสถานะ ไม่คืนเนื้อหา (log ของ GitHub Actions เป็นสาธารณะ)
     if (payload.selftest === '__google') {
       const st = await env.KV?.get(KV_STATUS)
-      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!googleCreds(env), connected: !!(await env.KV?.get(KV_REFRESH)), last: st ? JSON.parse(st) : null })
+      const refresh = await env.KV?.get(KV_REFRESH)
+      const creds = googleCreds(env)
+      let probe: unknown = null
+      if (refresh && creds) probe = await accessToken(creds, refresh).then((t) => sleepFormatProbe(t, addDays(todayBkk(), -3))).catch((e) => ({ error: (e as Error).message.slice(0, 120) }))
+      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, probe })
     }
     if (payload.selftest) {
       const t0 = Date.now()
