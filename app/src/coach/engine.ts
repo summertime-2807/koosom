@@ -14,7 +14,8 @@ import { fmtHMS } from '../lib/time'
 import { bpmRange } from './workoutText'
 
 export const dateOf = (s: string) => s.slice(0, 10)
-const isRun = (a: IcuActivity) => /run/i.test(a.type ?? 'Run')
+/** วิ่ง และมีข้อมูลระยะจริง (กิจกรรมจาก Strava บางรายการมาแค่หัวข้อ ไม่มีระยะ) */
+const isRun = (a: IcuActivity) => /run/i.test(a.type ?? 'Run') && (a.distance ?? 0) > 0
 
 // ── แผน ──
 export function plannedKm(e: IcuEvent): number | undefined {
