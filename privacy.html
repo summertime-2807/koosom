@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>คู่ซ้อม — นโยบายความเป็นส่วนตัว / Privacy Policy</title>
+<style>
+  body { font-family: system-ui, -apple-system, "Noto Sans Thai", sans-serif; background:#0f172a; color:#e2e8f0; max-width:720px; margin:0 auto; padding:32px 20px; line-height:1.7 }
+  h1 { color:#34d399; font-size:1.5rem } h2 { font-size:1.1rem; margin-top:2rem } a { color:#38bdf8 }
+  .muted { color:#94a3b8; font-size:.9rem }
+</style>
+</head>
+<body>
+<h1>คู่ซ้อม (KooSom) — นโยบายความเป็นส่วนตัว</h1>
+<p class="muted">ปรับปรุงล่าสุด 24 พฤศจิกายน 2026</p>
+
+<p>คู่ซ้อมเป็นเครื่องมือวางแผนวิ่งและโค้ชส่วนตัว ใช้งานโดยเจ้าของบัญชีเพียงคนเดียว ไม่ได้ให้บริการแก่บุคคลทั่วไป</p>
+
+<h2>ข้อมูลที่ใช้</h2>
+<ul>
+  <li><b>Google Health</b>: อ่านเฉพาะข้อมูลการนอน (เวลาเข้านอน/ตื่น นาทีที่หลับ) ผ่านสิทธิ์ <code>googlehealth.sleep.readonly</code> เท่านั้น</li>
+  <li><b>Intervals.icu / Garmin</b>: แผนซ้อม ผลการวิ่ง และค่าความพร้อมของร่างกายของเจ้าของบัญชี</li>
+</ul>
+
+<h2>ใช้ข้อมูลทำอะไร</h2>
+<p>ข้อมูลการนอนถูกเขียนลงบันทึก wellness ใน Intervals.icu ของเจ้าของบัญชีเอง เพื่อคำนวณความพร้อมก่อนซ้อม และส่งสรุปให้เจ้าของบัญชีผ่าน LINE เท่านั้น ไม่มีการขาย แชร์ หรือส่งต่อข้อมูลให้บุคคลที่สาม ไม่ใช้เพื่อโฆษณา และไม่ใช้ฝึกโมเดล AI</p>
+
+<h2>การจัดเก็บ</h2>
+<p>เก็บเฉพาะ refresh token ของ Google ไว้ใน Cloudflare Workers KV ที่เป็นของเจ้าของบัญชี ไม่เก็บสำเนาข้อมูลสุขภาพไว้ที่อื่น</p>
+
+<h2>การยกเลิก</h2>
+<p>ถอนสิทธิ์ได้ทุกเมื่อที่ <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> แล้วเลือก "คู่ซ้อม" → Remove access</p>
+
+<hr style="border-color:#334155;margin:2rem 0">
+<h1>KooSom — Privacy Policy</h1>
+<p>KooSom is a personal running planner and coach used only by its owner; it is not offered to the public.</p>
+<p><b>Data accessed:</b> sleep sessions from Google Health (read-only scope <code>googlehealth.sleep.readonly</code>), plus the owner's own training data in Intervals.icu.</p>
+<p><b>Use:</b> sleep duration is written to the owner's own Intervals.icu wellness log to compute training readiness and is summarised to the owner via LINE. Data is never sold, shared with third parties, used for advertising, or used to train AI models.</p>
+<p><b>Storage:</b> only the Google refresh token is stored, in the owner's Cloudflare Workers KV.</p>
+<p><b>Revoke:</b> at any time via <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a>.</p>
+</body>
+</html>
