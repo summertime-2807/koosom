@@ -2,3 +2,7 @@ name = "raceplan-line-bot"
 main = "worker/index.ts"
 compatibility_date = "2026-11-01"
 workers_dev = true
+
+# โค้ช AI (Cloudflare Workers AI · ฟรีวันละ 10,000 neurons)
+[ai]
+binding = "AI"

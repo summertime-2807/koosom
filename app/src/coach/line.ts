@@ -11,22 +11,38 @@ export interface QuickItem {
   text?: string
   data?: string
 }
-export type LineMessage = { type: 'text'; text: string; quickReply?: { items: unknown[] } }
+export type QuickReply = { items: unknown[] }
+export type LineMessage =
+  | { type: 'text'; text: string; quickReply?: QuickReply }
+  | { type: 'flex'; altText: string; contents: unknown; quickReply?: QuickReply }
 
 const API = 'https://api.line.me/v2/bot/message'
 const cut = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '…' : s)
 
+function quickReply(quick?: QuickItem[]): QuickReply | undefined {
+  if (!quick?.length) return undefined
+  return {
+    items: quick.slice(0, 13).map((q) => ({
+      type: 'action',
+      action: q.data
+        ? { type: 'postback', label: cut(q.label, 20), data: q.data, displayText: q.text ?? q.label }
+        : { type: 'message', label: cut(q.label, 20), text: q.text ?? q.label },
+    })),
+  }
+}
+
 export function text(t: string, quick?: QuickItem[]): LineMessage {
   const m: LineMessage = { type: 'text', text: cut(t, 4900) }
-  if (quick?.length)
-    m.quickReply = {
-      items: quick.slice(0, 13).map((q) => ({
-        type: 'action',
-        action: q.data
-          ? { type: 'postback', label: cut(q.label, 20), data: q.data, displayText: q.text ?? q.label }
-          : { type: 'message', label: cut(q.label, 20), text: q.text ?? q.label },
-      })),
-    }
+  const qr = quickReply(quick)
+  if (qr) m.quickReply = qr
+  return m
+}
+
+/** Flex message (การ์ด) — altText คือข้อความที่โชว์ในแจ้งเตือน */
+export function flex(altText: string, contents: unknown, quick?: QuickItem[]): LineMessage {
+  const m: LineMessage = { type: 'flex', altText: cut(altText, 390), contents }
+  const qr = quickReply(quick)
+  if (qr) m.quickReply = qr
   return m
 }
 
@@ -34,6 +50,20 @@ export const MENU: QuickItem[] = [
   { label: '📅 วันนี้ซ้อมอะไร', text: 'วันนี้' },
   { label: '🗓 7 วันข้างหน้า', text: 'สัปดาห์' },
   { label: '🔋 แบตเตอรี่/สรุป', text: 'สรุป' },
+  { label: '📊 รายงานสัปดาห์', text: 'รายงาน' },
+  { label: '💬 ถามโค้ช AI', text: 'ถามโค้ช' },
+  { label: '❓ คำถามค้าง', text: 'คำถาม' },
+  { label: '↻ ซิงก์ & ปรับตาราง', text: 'ซิงก์' },
+  { label: '🩹 แจ้งเจ็บ', text: 'เจ็บ ' },
+]
+
+/** เมนู "เพิ่มเติม" จาก rich menu */
+export const MORE: QuickItem[] = [
+  { label: '🏁 สัปดาห์แข่ง', text: 'แข่ง' },
+  { label: '⏱ การ์ดเพซ', text: 'การ์ดเพซ' },
+  { label: '🏅 วิเคราะห์ผลแข่ง', text: 'ผลแข่ง' },
+  { label: '👟 รองเท้า', text: 'รองเท้า' },
+  { label: '🎯 เป้า & ความพร้อม', text: 'เป้า' },
   { label: '❓ คำถามค้าง', text: 'คำถาม' },
   { label: '↻ ซิงก์ & ปรับตาราง', text: 'ซิงก์' },
   { label: '🩹 แจ้งเจ็บ', text: 'เจ็บ ' },

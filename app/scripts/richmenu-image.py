@@ -1,0 +1,92 @@
+"""สร้างรูป Rich menu ของคู่ซ้อม (2500x843, 3x2 ปุ่ม)"""
+import sys
+from PIL import Image, ImageDraw, ImageFont
+
+W, H = 2500, 843
+CW, CH = W // 3, H // 2
+FONT = "/tmp/fonts/package/files/noto-sans-thai-thai-{}-normal.woff"
+LAT = "/tmp/fonts/package/files/noto-sans-thai-latin-{}-normal.woff"
+big = (ImageFont.truetype(FONT.format(700), 92), ImageFont.truetype(LAT.format(700), 92))
+small = (ImageFont.truetype(FONT.format(500), 50), ImageFont.truetype(LAT.format(500), 50))
+
+BG = (15, 23, 42)
+CELL = (30, 41, 59)
+ACCENT = (52, 211, 153)
+ACC2 = (56, 189, 248)
+TXT = (241, 245, 249)
+SUB = (148, 163, 184)
+
+img = Image.new("RGB", (W, H), BG)
+d = ImageDraw.Draw(img)
+
+
+def icon(kind, cx, cy, col):
+    s = 64
+    w = 10
+    if kind == "today":  # ปฏิทิน + เครื่องหมายถูก
+        d.rounded_rectangle([cx - s, cy - s + 12, cx + s, cy + s], 16, outline=col, width=w)
+        d.line([cx - s, cy - s + 50, cx + s, cy - s + 50], fill=col, width=w)
+        for x in (cx - 30, cx + 30):
+            d.line([x, cy - s - 4, x, cy - s + 28], fill=col, width=w)
+        d.line([cx - 28, cy + 22, cx - 6, cy + 42, cx + 32, cy + 2], fill=col, width=w, joint="curve")
+    elif kind == "week":  # แท่ง 7 วัน
+        hs = [30, 70, 45, 95, 55, 80, 40]
+        for i, h in enumerate(hs):
+            x = cx - s + i * 21
+            d.rounded_rectangle([x, cy + s - h, x + 14, cy + s], 5, fill=col)
+    elif kind == "battery":
+        d.rounded_rectangle([cx - s, cy - 38, cx + s - 12, cy + 38], 14, outline=col, width=w)
+        d.rounded_rectangle([cx + s - 8, cy - 16, cx + s + 6, cy + 16], 5, fill=col)
+        d.rounded_rectangle([cx - s + 16, cy - 22, cx + 22, cy + 22], 6, fill=col)
+    elif kind == "chat":
+        d.rounded_rectangle([cx - s, cy - s + 8, cx + s, cy + 30], 26, outline=col, width=w)
+        d.polygon([(cx - 30, cy + 26), (cx - 52, cy + s + 6), (cx + 2, cy + 26)], fill=col)
+        for x in (cx - 32, cx, cx + 32):
+            d.ellipse([x - 9, cy - 22, x + 9, cy - 4], fill=col)
+    elif kind == "report":  # กราฟเส้น
+        d.line([cx - s, cy + s, cx + s, cy + s], fill=col, width=w)
+        d.line([cx - s, cy - s, cx - s, cy + s], fill=col, width=w)
+        d.line([cx - 44, cy + 30, cx - 10, cy - 4, cx + 16, cy + 16, cx + 56, cy - 40], fill=col, width=w, joint="curve")
+    elif kind == "more":
+        for y in (cy - 36, cy, cy + 36):
+            d.rounded_rectangle([cx - s, y - 6, cx + s, y + 6], 6, fill=col)
+
+
+def mixed(xy, text, fonts, col):
+    """วาดข้อความไทยปนอังกฤษ: อักษรไทยใช้ฟอนต์ไทย ที่เหลือใช้ฟอนต์ละติน"""
+    x, y = xy
+    runs = []
+    for ch in text:
+        th = "\u0e00" <= ch <= "\u0e7f"
+        if runs and runs[-1][0] == th:
+            runs[-1][1] += ch
+        else:
+            runs.append([th, ch])
+    for th, run in runs:
+        f = fonts[0] if th else fonts[1]
+        d.text((x, y), run, font=f, fill=col, anchor="ls")
+        x += d.textlength(run, font=f)
+
+
+cells = [
+    ("today", "วันนี้", "ซ้อมอะไรดี", ACCENT),
+    ("week", "สัปดาห์", "7 วันข้างหน้า", ACCENT),
+    ("battery", "สรุป", "แบต & ความพร้อม", ACCENT),
+    ("chat", "ถามโค้ช", "AI ตอบจากข้อมูลจริง", ACC2),
+    ("report", "รายงาน", "สรุปสัปดาห์นี้", ACC2),
+    ("more", "เพิ่มเติม", "แข่ง · รองเท้า · เจ็บ", ACC2),
+]
+
+for i, (kind, label, sub, col) in enumerate(cells):
+    c, r = i % 3, i // 3
+    x0, y0 = c * CW + 14, r * CH + 14
+    x1, y1 = (c + 1) * CW - 14, (r + 1) * CH - 14
+    d.rounded_rectangle([x0, y0, x1, y1], 36, fill=CELL)
+    icon(kind, x0 + 140, (y0 + y1) // 2, col)
+    tx = x0 + 250
+    mixed((tx, (y0 + y1) // 2 - 22), label, big, TXT)
+    mixed((tx, (y0 + y1) // 2 + 62), sub, small, SUB)
+
+out = sys.argv[1] if len(sys.argv) > 1 else "richmenu.png"
+img.save(out, optimize=True)
+print(out)

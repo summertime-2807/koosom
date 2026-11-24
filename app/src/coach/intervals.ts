@@ -64,6 +64,37 @@ export class IntervalsClient {
   deleteEvent(id: number) {
     return this.req<unknown>(`${this.a}/events/${id}`, { method: 'DELETE' })
   }
+  /** สตรีมของกิจกรรม (เวลา/ระยะ/หัวใจ) — ใช้วิเคราะห์ split หลังแข่ง */
+  async activityStreams(activityId: string, types = ['time', 'distance', 'heartrate']): Promise<Record<string, number[]>> {
+    const raw = await this.req<{ type: string; data: (number | null)[] }[]>(`/activity/${encodeURIComponent(activityId)}/streams.json?types=${types.join(',')}`)
+    const out: Record<string, number[]> = {}
+    for (const s of raw ?? []) out[s.type] = (s.data ?? []).map((v) => (v == null ? NaN : v))
+    return out
+  }
+
+  // ── ข้อมูล JSON ทั่วไป (เก็บเป็น NOTE ในปฏิทิน เช่น รองเท้า) ──
+  async loadJson<T>(externalId: string, date: string): Promise<{ data: T | null; eventId?: number }> {
+    const ev = await this.events(date, date)
+    const hit = ev.find((e) => e.external_id === externalId)
+    if (!hit?.description) return { data: null, eventId: hit?.id }
+    const m = /```json\s*([\s\S]*?)```/.exec(hit.description)
+    try {
+      return { data: JSON.parse(m ? m[1] : hit.description) as T, eventId: hit.id }
+    } catch {
+      return { data: null, eventId: hit.id }
+    }
+  }
+  saveJson(externalId: string, date: string, name: string, data: unknown, intro = '') {
+    return this.upsertEvents([
+      {
+        external_id: externalId,
+        category: 'NOTE',
+        start_date_local: `${date}T00:00:00`,
+        name,
+        description: `${intro ? intro + '\n' : ''}\`\`\`json\n${JSON.stringify(data)}\n\`\`\``,
+      },
+    ])
+  }
 
   // ── config (เก็บเป็น NOTE ในปฏิทิน) ──
   async loadConfig(): Promise<CoachConfig | null> {

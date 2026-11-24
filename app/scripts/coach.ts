@@ -1,15 +1,23 @@
 // ─────────────────────────────────────────────────────────────
-// งานโค้ชอัตโนมัติ (GitHub Actions)
-//   night   (21:00): อ่านผลซ้อม + ค่าร่างกาย → ปรับตารางตามกฎ → เขียนสรุปลงปฏิทิน Intervals.icu → แจ้งเตือนมือถือ
-//   morning (08:00): เช็ก HRV / HR พัก / การนอน → แจ้งเตือนเฉพาะวันที่ค่าไม่ดี
-// secrets: INTERVALS_ATHLETE_ID, INTERVALS_API_KEY, (ไม่บังคับ) NTFY_TOPIC
+// งานโค้ชอัตโนมัติของคู่ซ้อม (GitHub Actions)
+//   night   (21:07): อ่านผลซ้อม + ค่าร่างกาย → ปรับตารางตามกฎ → เขียนสรุปลงปฏิทิน → ส่ง LINE
+//                    + วันอาทิตย์: การ์ดรายงานสัปดาห์
+//                    + วันแข่งถึง 2 วันหลังแข่ง: วิเคราะห์ผลแข่ง (ส่งครั้งเดียว)
+//   morning (08:07): ซ้อมวันนี้ + แบตเตอรี่ร่างกาย
+//                    + เหลือ ≤ 7 วันก่อนแข่ง: การ์ดสัปดาห์แข่ง (พยากรณ์อากาศ + สิ่งที่ต้องทำ)
+//                    + 1 วันก่อนแข่งและวันแข่ง: การ์ดเพซ
+// secrets: INTERVALS_ATHLETE_ID, INTERVALS_API_KEY, LINE_CHANNEL_ACCESS_TOKEN, LINE_USER_ID, (ไม่บังคับ) NTFY_TOPIC
 // ⚠️ repo สาธารณะ → log ของงานนี้สาธารณะ ห้ามพิมพ์ข้อมูลสุขภาพ/คีย์ออก console
 // ─────────────────────────────────────────────────────────────
 import { IntervalsClient } from '../src/coach/intervals'
 import { loadAndAnalyze, commitReport } from '../src/coach/runner'
 import { battery, overallLight, lightDot } from '../src/coach/engine'
-import { addDays } from '../src/engine/trainingEngine'
-import { MENU, linePush, questionMessages, text } from '../src/coach/line'
+import { addDays, daysBetween, dowOf } from '../src/engine/trainingEngine'
+import { MENU, MORE, dayLabel, flex, linePush, plannedFor, questionMessages, text, workoutLines } from '../src/coach/line'
+import type { LineMessage } from '../src/coach/line'
+import { REVIEW_PREFIX, findRaceActivity, analyzeRace, loadShoes, paceCard, raceInfo, raceWeather, shoeWarnings, shoesOldest, weeklyData } from '../src/coach/extras'
+import { paceCardFlex, raceWeekFlex, reviewFlex, weeklyFlex } from '../src/coach/flex'
+import { fmtHMS } from '../src/lib/time'
 
 const mode = process.argv[2] === 'morning' ? 'morning' : 'night'
 const id = process.env.INTERVALS_ATHLETE_ID?.trim()
@@ -17,11 +25,11 @@ const key = process.env.INTERVALS_API_KEY?.trim()
 const topic = process.env.NTFY_TOPIC?.trim()
 const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim()
 const lineUser = process.env.LINE_USER_ID?.trim()
-const today = new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) // เวลาไทย
+const today = process.env.COACH_TODAY?.trim() || new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) // เวลาไทย
 
-async function line(messages: Parameters<typeof linePush>[2]) {
-  if (!lineToken || !lineUser) return
-  await linePush(lineToken, lineUser, messages).catch((e) => console.log('line push failed', (e as Error).message.slice(0, 60)))
+async function line(messages: LineMessage[]) {
+  if (!lineToken || !lineUser || !messages.length) return
+  await linePush(lineToken, lineUser, messages.slice(0, 5)).catch((e) => console.log('line push failed', (e as Error).message.slice(0, 60)))
 }
 
 async function notify(title: string, body: string) {
@@ -44,29 +52,76 @@ async function main() {
     console.log('ยังไม่มีค่าตั้งค่าโค้ช (กดบันทึกในแอปก่อน) — ข้าม')
     return
   }
-  if (today > addDays(cfg.to, 1)) {
+  const end = cfg.raceDate && cfg.raceDate > cfg.to ? cfg.raceDate : cfg.to
+  if (today > addDays(end, 3)) {
     console.log('แผนจบแล้ว — ข้าม')
     return
   }
+  const info = raceInfo(cfg)
+  const daysLeft = info ? daysBetween(today, info.date) : undefined
+
   if (mode === 'morning') {
+    const msgs: LineMessage[] = []
     const w = await client.wellness(addDays(today, -8), today)
     const b = battery(w, today)
     const ov = overallLight(b)
-    console.log(`morning: items=${b.length}`)
-    if (ov === 'red' || ov === 'yellow') {
-      const body = b.filter((x) => x.light !== 'green').map((x) => `${lightDot(x.light)} ${x.label} ${x.value} — ${x.why}`).join('\n')
-      await notify(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง`, body)
-      await line([text(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง\n${body}`, MENU)])
+    const events = await client.events(today, today)
+    const todays = plannedFor(events, today)
+    const lines: string[] = [`☀️ อรุณสวัสดิ์ · ${dayLabel(today)}`]
+    if (todays.length) for (const e of todays) lines.push('', `📅 ${e.name}`, workoutLines(e))
+    else lines.push('', 'วันนี้พัก / เดินเบา ๆ 🧘')
+    lines.push('', `${lightDot(ov)} แบตเตอรี่ร่างกาย`)
+    for (const x of b) lines.push(`${lightDot(x.light)} ${x.label} ${x.value}${x.light !== 'green' ? ` — ${x.why}` : ''}`)
+    if (ov === 'red' && todays.length) lines.push('', 'ค่าร่างกายไม่ดี ถ้าวันนี้เป็นวันหนัก ลองลดเป็นวิ่งเบา หรือพิมพ์ถามโค้ชได้เลย')
+    // ไม่ส่งถ้าวันพักและร่างกายปกติ (ประหยัดโควตา push ของ LINE)
+    if (todays.length || ov === 'red' || ov === 'yellow') msgs.push(text(lines.join('\n'), MENU))
+    if (ov === 'red' || ov === 'yellow') await notify(`${lightDot(ov)} ค่าร่างกายเช้านี้ควรระวัง`, b.filter((x) => x.light !== 'green').map((x) => `${x.label} ${x.value} — ${x.why}`).join('\n'))
+
+    if (info && daysLeft != null && daysLeft >= 0 && daysLeft <= 7) {
+      const weather = await raceWeather(info)
+      const card = cfg.goalSec ? paceCard(info, cfg.goalSec, weather) : undefined
+      msgs.push(flex(daysLeft ? `🏁 อีก ${daysLeft} วันถึง ${info.name}` : `🏁 วันนี้แข่ง ${info.name}!`, raceWeekFlex(info, daysLeft, weather, card), MORE))
+      if (card && daysLeft <= 1) msgs.push(flex(`⏱ การ์ดเพซ ${fmtHMS(card.targetSec)}`, paceCardFlex(info, card), MORE))
     }
+    console.log(`morning: messages=${msgs.length}`)
+    await line(msgs)
     return
   }
+
+  // ── night ──
   const data = await loadAndAnalyze(client, cfg, today)
   const r = await commitReport(client, cfg, data, today)
   console.log(`night: applied=${r.applied} questions=${data.report.questions.length} days=${data.report.days.length}`)
   const title = `${lightDot(data.report.overall)} โค้ชสรุป ${today.slice(5)}${data.report.questions.length ? ' ❓' : ''}`
   await notify(title, data.report.summary.slice(0, 3800))
   const fresh = await loadAndAnalyze(client, cfg, today)
-  await line([text(`${title}\n\n${data.report.summary}`, MENU), ...questionMessages(fresh.openQuestions)].slice(0, 5))
+  const msgs: LineMessage[] = [text(`${title}\n\n${data.report.summary}`, MENU)]
+
+  // วิเคราะห์ผลแข่ง (ครั้งเดียว)
+  if (info && daysLeft != null && daysLeft <= 0 && daysLeft >= -2) {
+    const acts = await client.activities(addDays(info.date, -1), today)
+    const race = findRaceActivity(acts, cfg)
+    if (race) {
+      const { data: done } = await client.loadJson<{ activityId: string }>(`${REVIEW_PREFIX}${info.date}`, info.date)
+      if (!done) {
+        const review = analyzeRace(race, await client.activityStreams(race.id), cfg, true)
+        await client.saveJson(`${REVIEW_PREFIX}${info.date}`, info.date, `🏅 ผลแข่ง ${fmtHMS(review.finishSec)}`, { activityId: race.id, finishSec: review.finishSec, splitPct: review.splitPct }, review.verdict.join('\n'))
+        msgs.push(flex(`🏅 ผลแข่ง ${fmtHMS(review.finishSec)}`, reviewFlex(review, true, cfg.goalSec && cfg.distKm ? cfg.goalSec / cfg.distKm : undefined), MORE))
+        console.log('night: race review sent')
+      }
+    }
+  }
+
+  // รายงานประจำสัปดาห์ (คืนวันอาทิตย์)
+  if (dowOf(today) === 0) {
+    const [acts, wellness, store] = await Promise.all([client.activities(addDays(today, -70), today), client.wellness(addDays(today, -21), today), loadShoes(client)])
+    const shoeActs = store.shoes.length ? await client.activities(shoesOldest(store, today), today) : []
+    const w = weeklyData(fresh.events, acts, wellness, cfg, today)
+    msgs.push(flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs)), MENU))
+  }
+
+  msgs.push(...questionMessages(fresh.openQuestions))
+  await line(msgs.slice(0, 5))
 }
 
 main().catch((e) => {

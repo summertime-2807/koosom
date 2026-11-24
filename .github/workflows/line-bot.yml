@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - app/worker/**
-      - app/src/coach/**
+      - app/src/**
       - app/wrangler.toml
       - .github/workflows/line-bot.yml
   workflow_dispatch:
