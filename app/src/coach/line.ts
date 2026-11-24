@@ -10,6 +10,8 @@ export interface QuickItem {
   label: string
   text?: string
   data?: string
+  /** ปุ่มเลือกวันที่ (datetimepicker) — ส่ง postback data + params.date */
+  pickDate?: { initial: string; min: string; max: string }
 }
 export type QuickReply = { items: unknown[] }
 export type LineMessage =
@@ -24,7 +26,9 @@ function quickReply(quick?: QuickItem[]): QuickReply | undefined {
   return {
     items: quick.slice(0, 13).map((q) => ({
       type: 'action',
-      action: q.data
+      action: q.pickDate
+        ? { type: 'datetimepicker', label: cut(q.label, 20), data: q.data ?? 'pick', mode: 'date', ...q.pickDate }
+        : q.data
         ? { type: 'postback', label: cut(q.label, 20), data: q.data, displayText: q.text ?? q.label }
         : { type: 'message', label: cut(q.label, 20), text: q.text ?? q.label },
     })),
@@ -59,6 +63,8 @@ export const MENU: QuickItem[] = [
 
 /** เมนู "เพิ่มเติม" จาก rich menu */
 export const MORE: QuickItem[] = [
+  { label: '💼 ติดงาน', text: 'ติดงาน' },
+  { label: '⏱ ยุ่ง วิ่งสั้นวันนี้', text: 'วิ่งสั้น' },
   { label: '🏁 สัปดาห์แข่ง', text: 'แข่ง' },
   { label: '⏱ การ์ดเพซ', text: 'การ์ดเพซ' },
   { label: '🏅 วิเคราะห์ผลแข่ง', text: 'ผลแข่ง' },

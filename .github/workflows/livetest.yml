@@ -1,0 +1,26 @@
+name: ทดสอบติดงานกับ Intervals จริง
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  livetest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: app
+      - working-directory: app
+        env:
+          INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
+          INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
+        run: npx tsx scripts/busy-livetest.ts

@@ -7,6 +7,7 @@ import type { CoachData } from './runner'
 import { dateOf } from './engine'
 import { dayLabel, plannedFor, workoutLines } from './line'
 import { addDays, daysBetween } from '../engine/trainingEngine'
+import { busyNotes, rangeLabel } from './busy'
 import { fmtHMS, fmtMS } from '../lib/time'
 
 export interface AiEnv {
@@ -54,6 +55,8 @@ export function buildContext(data: CoachData, cfg: CoachConfig, acts: IcuActivit
     .filter((e) => e.category === 'NOTE' && /^🩹/.test(e.name ?? '') && daysBetween(dateOf(e.start_date_local), today) <= 14)
     .map((e) => `- ${dateOf(e.start_date_local)} ${e.description ?? e.name}`)
   if (injuries.length) L.push('', 'อาการเจ็บที่แจ้งไว้ (14 วัน):', ...injuries)
+  const busy = busyNotes(data.events).filter((b) => daysBetween(b.period.to, today) <= 14)
+  if (busy.length) L.push('', 'ช่วงที่แจ้งว่าติดงาน/วิ่งสั้น (เปิดร้านอาหาร 24 ชม. เวลาไม่แน่นอน):', ...busy.map((b) => `- ${b.period.mode === 'off' ? 'ติดงาน' : 'วิ่งสั้น'} ${rangeLabel(b.period)}`))
   if (data.openQuestions.length) L.push('', 'คำถามที่โค้ชอัตโนมัติรอคำตอบ:', ...data.openQuestions.map((q) => `- ${q.text}`))
   if (extra.length) L.push('', ...extra)
   return L.join('\n')

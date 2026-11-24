@@ -7,6 +7,7 @@ import type { CoachConfig, CoachQuestion, CoachReport, IcuEvent } from './types'
 import { IntervalsClient, CONFIG_EXTERNAL_ID } from './intervals'
 import { buildReport, dateOf } from './engine'
 import { addDays } from '../engine/trainingEngine'
+import { busyDates } from './busy'
 
 export const NOTE_PREFIX = 'rp-coach-'
 
@@ -50,6 +51,8 @@ export async function loadAndAnalyze(client: IntervalsClient, cfg: CoachConfig, 
       else openQuestions.push({ ...q, noteDate: dateOf(n.start_date_local) })
     }
   }
+  // วันที่แจ้ง "ติดงาน" ไม่นับขาด ไม่ถาม
+  busyDates(events).forEach((d) => handled.add(d))
   // คำถามที่เปิดอยู่แล้ว ไม่ต้องถามซ้ำ
   openQuestions.forEach((q) => handled.add(q.date))
   const injuryDates = events.filter((e) => e.category === 'NOTE' && /^🩹/.test(e.name ?? '')).map((e) => dateOf(e.start_date_local))

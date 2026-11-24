@@ -28,7 +28,8 @@ import { paceCardFlex, raceWeekFlex, reviewFlex, shoesFlex, weeklyFlex } from '.
 import { askCoach, buildContext } from '../src/coach/aiCoach'
 import type { AiEnv } from '../src/coach/aiCoach'
 import { aiTrace } from '../src/coach/aiCoach'
-import { addDays, daysBetween } from '../src/engine/trainingEngine'
+import { addDays, daysBetween, dowOf } from '../src/engine/trainingEngine'
+import { busyNotes, describeBusy, endBusy, rangeLabel, setBusy, setShort } from '../src/coach/busy'
 import { accessToken, authUrl, checkIdentity, exchangeCode, fmtNight, sleepFormatProbe, syncSleep } from '../src/coach/googleHealth'
 import type { GoogleCreds } from '../src/coach/googleHealth'
 import { fmtHMS } from '../src/lib/time'
@@ -95,7 +96,7 @@ interface LineEvent {
   replyToken?: string
   source?: { userId?: string }
   message?: { type: string; text?: string }
-  postback?: { data: string }
+  postback?: { data: string; params?: { date?: string } }
 }
 
 const todayBkk = () => new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10)
@@ -132,7 +133,45 @@ async function saveHist(uid: string, h: Hist) {
 }
 
 const GREETING = (plan?: string) =>
-  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · การนอน · เจ็บ <อาการ>`
+  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · การนอน · ติดงาน · วิ่งสั้น · เจ็บ <อาการ>`
+
+
+// ── 💼 ติดงาน ──
+function parseDM(s: string, today: string): string | undefined {
+  const m = /(\d{1,2})\s*[/.-]\s*(\d{1,2})/.exec(s)
+  if (!m) return undefined
+  const y = Number(today.slice(0, 4))
+  const mk = (yy: number) => `${yy}-${String(Number(m[2])).padStart(2, '0')}-${String(Number(m[1])).padStart(2, '0')}`
+  const d = mk(y)
+  return d < today ? mk(y + 1) : d
+}
+
+function busyMenu(today: string) {
+  const sunday = addDays(today, (7 - dowOf(today)) % 7)
+  return [
+    { label: 'วันนี้', data: 'busy|0', text: 'ติดงานวันนี้' },
+    { label: 'วันนี้–พรุ่งนี้', data: 'busy|1', text: 'ติดงาน 2 วัน' },
+    { label: '3 วัน', data: 'busy|2', text: 'ติดงาน 3 วัน' },
+    ...(sunday > addDays(today, 2) ? [{ label: 'ถึงวันอาทิตย์', data: 'busy|sun', text: 'ติดงานถึงวันอาทิตย์' }] : []),
+    { label: '📅 เลือกวันสุดท้าย', data: 'busy|pick', pickDate: { initial: addDays(today, 3), min: today, max: addDays(today, 20) } },
+    { label: '⏱ ยุ่ง วิ่งสั้นวันนี้', text: 'วิ่งสั้น' },
+    { label: '✅ กลับมาซ้อมแล้ว', text: 'กลับมาซ้อม' },
+  ]
+}
+const AFTER_BUSY = [
+  { label: '↩️ ยกเลิก/กลับมาซ้อม', text: 'กลับมาซ้อม' },
+  { label: '📅 วันนี้ซ้อมอะไร', text: 'วันนี้' },
+  { label: '🗓 7 วันข้างหน้า', text: 'สัปดาห์' },
+]
+
+async function doBusy(env: Env, to: string, today: string): Promise<LineMessage[]> {
+  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  const cfg = await client.loadConfig()
+  if (!cfg) return [text('ยังไม่ได้ตั้งค่าโค้ช', MENU)]
+  if (to < today) return [text('เลือกวันที่วันนี้หรือหลังจากนี้นะครับ', busyMenu(today))]
+  const r = await setBusy(client, cfg, today, to, today)
+  return [text(describeBusy(r.period, r.merged), AFTER_BUSY)]
+}
 
 let workerOrigin = 'https://raceplan-line-bot.sicasica03.workers.dev'
 
@@ -147,6 +186,14 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   const cfg = await client.loadConfig()
   if (!cfg) return [text('ยังไม่ได้ตั้งค่าโค้ช — เปิดแอปคู่ซ้อม แท็บซ้อม → โค้ช & Garmin แล้วกดบันทึก', MENU)]
   const today = todayBkk()
+
+  // ปุ่ม 💼 ติดงาน
+  if (ev.type === 'postback' && ev.postback?.data.startsWith('busy|')) {
+    const arg = ev.postback.data.split('|')[1]
+    const to = arg === 'pick' ? ev.postback.params?.date : arg === 'sun' ? addDays(today, (7 - dowOf(today)) % 7) : addDays(today, Number(arg) || 0)
+    if (!to) return [text('ไม่ได้เลือกวันที่', busyMenu(today))]
+    return doBusy(env, to, today)
+  }
 
   // ปุ่มตอบคำถาม
   if (ev.type === 'postback' && ev.postback?.data.startsWith('ans|')) {
@@ -167,6 +214,32 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const r = await runSleepSync(env)
     return [text(r.ok ? `😴 การนอนจาก Google Health (อัปเดตลงโค้ชแล้ว)\n${r.text}` : `😴 ${r.text}${/เชื่อม/.test(r.text) ? '\nพิมพ์ "เชื่อม google" เพื่อเริ่ม' : ''}`, MENU)]
   }
+  // 💼 ติดงาน / ⏱ วิ่งสั้น / ✅ กลับมาซ้อม
+  if (/^(ติดงาน|ไม่ว่าง|busy)$/i.test(msg)) {
+    const events = await client.events(addDays(today, -21), addDays(today, 21))
+    const active = busyNotes(events).filter((b) => b.period.to >= today)
+    const now = active.length ? `\n\nตอนนี้ตั้งไว้: ${active.map((b) => `${b.period.mode === 'off' ? '💼' : '⏱'} ${rangeLabel(b.period)}`).join(', ')}` : ''
+    return [text(`💼 ติดงานถึงวันไหนครับ?\nวันที่เลือกจะไม่นับเป็นขาดซ้อม โค้ชจะย้าย/ข้ามซ้อมให้ และปรับช่วงกลับมาให้เอง\n\nถ้ายุ่งแต่พอวิ่งได้ 20–30 นาที กด "⏱ ยุ่ง วิ่งสั้นวันนี้" ดีกว่าขาดทั้งวัน${now}`, busyMenu(today))]
+  }
+  const busyN = /^(?:ติดงาน|ไม่ว่าง)\s*(?:วันนี้$|(\d{1,2})\s*วัน|ถึง\s*(.+)|ถึงวันอาทิตย์)$/.exec(msg)
+  if (busyN) {
+    const to = busyN[1] ? addDays(today, Math.max(1, Number(busyN[1])) - 1) : busyN[2] ? (/อาทิตย์/.test(busyN[2]) ? addDays(today, (7 - dowOf(today)) % 7) : parseDM(busyN[2], today)) : /อาทิตย์/.test(msg) ? addDays(today, (7 - dowOf(today)) % 7) : today
+    if (!to) return [text('พิมพ์วันที่แบบ "ติดงาน ถึง 30/11" หรือกดเลือกจากปุ่มได้เลย', busyMenu(today))]
+    return doBusy(env, to, today)
+  }
+  if (/^(วิ่งสั้น|ยุ่ง|วิ่งสั้นวันนี้|วิ่งสั้น พรุ่งนี้|วิ่งสั้นพรุ่งนี้)$/.test(msg)) {
+    const day = /พรุ่งนี้/.test(msg) ? addDays(today, 1) : today
+    const p = await setShort(client, cfg, day)
+    if (!p.createdAt) return [text(`${rangeLabel(p)} ตั้งเป็นวิ่งสั้นไว้แล้วครับ`, AFTER_BUSY)]
+    return [text(describeBusy(p), AFTER_BUSY)]
+  }
+  if (/^(กลับมาซ้อม|กลับมาซ้อมแล้ว|ว่างแล้ว|ยกเลิกติดงาน)$/.test(msg)) {
+    const r = await endBusy(client, cfg, today)
+    if (!r.ended.length) return [text('ไม่มีช่วงติดงาน/วิ่งสั้นที่ค้างอยู่ครับ ซ้อมตามตารางได้เลย 💪', MENU)]
+    const ramp = r.ramp ? `\n\nหยุดไปหลายวัน เลยปรับช่วงกลับมาให้:\n${describeBusy(r.ramp).split('\n').filter((l) => l.startsWith('•')).join('\n')}` : ''
+    return [text(`✅ ยินดีต้อนรับกลับครับ!\nยกเลิก ${r.ended.join(', ')} · คืนตารางเดิม ${r.restored} รายการ${ramp}\n\n⌚ ซิงก์นาฬิกาเพื่ออัปเดต workout`, MENU)]
+  }
+
   if (/^(เมนู|menu|help|ช่วย|สวัสดี|hi|hello|หวัดดี)$/i.test(msg)) return [text(GREETING(cfg.planName), MENU)]
   if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', MORE)]
   if (/^(ถามโค้ช|โค้ช ?ai|ai)$/i.test(msg)) return [text('💬 พิมพ์คำถามมาได้เลยครับ เช่น\n• "ขาตึงนิดหน่อย พรุ่งนี้ควรวิ่งอินเทอร์วัลไหม"\n• "สัปดาห์นี้ซ้อมขาดไป 2 วัน ต้องชดเชยไหม"\n• "เป้า sub 2 ยังไหวไหม"')]
