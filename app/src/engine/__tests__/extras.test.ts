@@ -160,3 +160,27 @@ describe('รายงานสัปดาห์', () => {
     checkFlex(weeklyFlex(w, 7140, ['👟 test']))
   })
 })
+
+describe('การนอนจาก Google Health', () => {
+  it('รวมเป็นรายคืนตามวันตื่น (เวลาไทย) ไม่นับงีบกลางวัน', async () => {
+    const { nightsFrom } = await import('../../coach/googleHealth')
+    const pt = (start: string, end: string, asleep: number, period: number, main = false) => ({
+      sleep: {
+        interval: { startTime: start, endTime: end, startUtcOffset: '25200s', endUtcOffset: '25200s' },
+        summary: { minutesAsleep: String(asleep), minutesInSleepPeriod: String(period) },
+        metadata: { mainSleep: main },
+      },
+    })
+    const nights = nightsFrom([
+      pt('2026-11-23T15:30:00Z', '2026-11-23T22:45:00Z', 400, 435, true), // 22:30–05:45 → ตื่น 24 พ.ย.
+      pt('2026-11-24T06:00:00Z', '2026-11-24T06:40:00Z', 35, 40), // งีบ 13:00 วันที่ 24 → ไม่นับ
+      pt('2026-11-24T16:00:00Z', '2026-11-24T22:00:00Z', 330, 360, true), // ตื่น 25 พ.ย.
+      pt('2026-11-25T10:00:00Z', '2026-11-25T10:30:00Z', 30, 30), // งีบสั้น วันที่ 25 เท่านั้น → <60 นาทีของคืนก็ยังมี main
+    ])
+    expect(nights.map((n) => n.date)).toEqual(['2026-11-24', '2026-11-25'])
+    expect(nights[0].asleepMin).toBe(400)
+    expect(nights[0].start).toBe('22:30')
+    expect(nights[0].end).toBe('05:45')
+    expect(nights[1].asleepMin).toBe(330)
+  })
+})

@@ -8,7 +8,7 @@
 import { IntervalsClient } from '../src/coach/intervals'
 import { loadAndAnalyze, commitReport, answerQuestion, injuryNote } from '../src/coach/runner'
 import { lightDot } from '../src/coach/engine'
-import { MENU, MORE, dayLabel, flex, lineReply, plannedFor, questionMessages, text, workoutLines } from '../src/coach/line'
+import { MENU, MORE, dayLabel, flex, linePush, lineReply, plannedFor, questionMessages, text, workoutLines } from '../src/coach/line'
 import type { LineMessage } from '../src/coach/line'
 import {
   activeShoe,
@@ -29,6 +29,8 @@ import { askCoach, buildContext } from '../src/coach/aiCoach'
 import type { AiEnv } from '../src/coach/aiCoach'
 import { aiTrace } from '../src/coach/aiCoach'
 import { addDays, daysBetween } from '../src/engine/trainingEngine'
+import { authUrl, checkIdentity, exchangeCode, fmtNight, syncSleep } from '../src/coach/googleHealth'
+import type { GoogleCreds } from '../src/coach/googleHealth'
 import { fmtHMS } from '../src/lib/time'
 
 export interface Env extends AiEnv {
@@ -37,7 +39,56 @@ export interface Env extends AiEnv {
   LINE_USER_ID?: string
   INTERVALS_ATHLETE_ID: string
   INTERVALS_API_KEY: string
+  GOOGLE_CLIENT_ID?: string
+  GOOGLE_CLIENT_SECRET?: string
+  KV?: KVNamespace
 }
+
+// ── Google Health (การนอน) ──
+const REDIRECT_PATH = '/google/callback'
+const KV_REFRESH = 'google_refresh_token'
+const KV_STATUS = 'google_sleep_status'
+
+const googleCreds = (env: Env): GoogleCreds | null => (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET ? { clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET } : null)
+
+async function hmacHex(secret: string, msg: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msg))
+  return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+/** ลิงก์เชื่อม Google ใช้ได้ 20 นาที และเซ็นด้วย channel secret (คนอื่นเอาไปเชื่อมบัญชีตัวเองแทนไม่ได้) */
+async function makeState(env: Env): Promise<string> {
+  const exp = Math.floor(Date.now() / 1000) + 20 * 60
+  return `${exp}.${await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}`)}`
+}
+async function checkState(env: Env, state: string | null): Promise<boolean> {
+  const [exp, sig] = (state ?? '').split('.')
+  if (!exp || !sig || Number(exp) < Date.now() / 1000) return false
+  return (await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}`)) === sig
+}
+
+async function runSleepSync(env: Env, days = 4): Promise<{ ok: boolean; text: string }> {
+  const creds = googleCreds(env)
+  const refresh = await env.KV?.get(KV_REFRESH)
+  if (!creds || !refresh || !env.KV) return { ok: false, text: 'ยังไม่ได้เชื่อม Google Health' }
+  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  try {
+    const r = await syncSleep(client, creds, refresh, todayBkk(), days)
+    await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: true, nights: r.written }))
+    const lines = r.nights.slice(-5).map((n) => `${dayLabel(n.date)}  ${fmtNight(n)}`)
+    return { ok: true, text: lines.length ? lines.join('\n') : 'ยังไม่มีข้อมูลการนอนใน 4 วันล่าสุด' }
+  } catch (e) {
+    const msg = (e as Error).message.slice(0, 200)
+    await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: false, error: msg }))
+    return { ok: false, text: msg }
+  }
+}
+
+const page = (title: string, body: string) =>
+  new Response(
+    `<!doctype html><html lang="th"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:system-ui,sans-serif;background:#0f172a;color:#f1f5f9;padding:32px;line-height:1.6"><h2>${title}</h2><p>${body}</p><p style="color:#94a3b8">ปิดหน้านี้แล้วกลับไปที่ LINE ได้เลย</p></body></html>`,
+    { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
+  )
 
 interface LineEvent {
   type: string
@@ -81,7 +132,9 @@ async function saveHist(uid: string, h: Hist) {
 }
 
 const GREETING = (plan?: string) =>
-  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · เจ็บ <อาการ>`
+  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · การนอน · เจ็บ <อาการ>`
+
+let workerOrigin = 'https://raceplan-line-bot.sicasica03.workers.dev'
 
 async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   const userId = ev.source?.userId ?? ''
@@ -105,6 +158,15 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   }
   if (ev.type !== 'message' || ev.message?.type !== 'text') return [text('ตอนนี้โค้ชอ่านได้เฉพาะข้อความตัวอักษรครับ 🙏', MENU)]
 
+  if (/^(เชื่อม ?google|เชื่อมต่อ ?google|google|เชื่อม ?google ?health|connect google)$/i.test(msg)) {
+    if (!googleCreds(env) || !env.KV) return [text('ฝั่งระบบยังไม่ได้ใส่ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — ทำตามขั้นตอนตั้งค่า Google Cloud ก่อนครับ')]
+    const url = `${workerOrigin}/google/login?state=${await makeState(env)}`
+    return [text(`🔗 เชื่อม Google Health (ดึงการนอน)\nแตะลิงก์นี้ภายใน 20 นาที → เลือกบัญชี Google ที่ใช้กับแอป Google Health → อนุญาต\n(ถ้าขึ้น "Google hasn't verified this app" กด Advanced → Go to … แล้วไปต่อ เพราะเป็นแอปส่วนตัวของคุณเอง)\n\n${url}`)]
+  }
+  if (/^(การนอน|นอน|sleep|ซิงก์การนอน)$/i.test(msg)) {
+    const r = await runSleepSync(env)
+    return [text(r.ok ? `😴 การนอนจาก Google Health (อัปเดตลงโค้ชแล้ว)\n${r.text}` : `😴 ${r.text}${/เชื่อม/.test(r.text) ? '\nพิมพ์ "เชื่อม google" เพื่อเริ่ม' : ''}`, MENU)]
+  }
   if (/^(เมนู|menu|help|ช่วย|สวัสดี|hi|hello|หวัดดี)$/i.test(msg)) return [text(GREETING(cfg.planName), MENU)]
   if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', MORE)]
   if (/^(ถามโค้ช|โค้ช ?ai|ai)$/i.test(msg)) return [text('💬 พิมพ์คำถามมาได้เลยครับ เช่น\n• "ขาตึงนิดหน่อย พรุ่งนี้ควรวิ่งอินเทอร์วัลไหม"\n• "สัปดาห์นี้ซ้อมขาดไป 2 วัน ต้องชดเชยไหม"\n• "เป้า sub 2 ยังไหวไหม"')]
@@ -264,6 +326,32 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
 
 export default {
   async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(req.url)
+    workerOrigin = url.origin
+    if (req.method === 'GET' && url.pathname === '/google/login') {
+      const creds = googleCreds(env)
+      if (!creds) return page('ยังไม่ได้ตั้งค่า', 'ยังไม่มี GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET')
+      const state = url.searchParams.get('state')
+      if (!(await checkState(env, state))) return page('ลิงก์หมดอายุ', 'พิมพ์ "เชื่อม google" ใน LINE เพื่อขอลิงก์ใหม่')
+      return Response.redirect(authUrl(creds, `${url.origin}${REDIRECT_PATH}`, state!), 302)
+    }
+    if (req.method === 'GET' && url.pathname === REDIRECT_PATH) {
+      const creds = googleCreds(env)
+      if (!creds || !env.KV) return page('ยังไม่ได้ตั้งค่า', 'ระบบยังไม่พร้อม')
+      if (!(await checkState(env, url.searchParams.get('state')))) return page('ลิงก์หมดอายุ', 'พิมพ์ "เชื่อม google" ใน LINE เพื่อขอลิงก์ใหม่')
+      if (url.searchParams.get('error')) return page('ยกเลิกแล้ว', `Google ตอบกลับ: ${url.searchParams.get('error')}`)
+      try {
+        const tok = await exchangeCode(creds, url.searchParams.get('code') ?? '', `${url.origin}${REDIRECT_PATH}`)
+        await checkIdentity(tok.access_token!)
+        if (tok.refresh_token) await env.KV.put(KV_REFRESH, tok.refresh_token)
+        else if (!(await env.KV.get(KV_REFRESH))) throw new Error('Google ไม่ส่ง refresh token — ลองเชื่อมใหม่อีกครั้ง')
+        const r = await runSleepSync(env, 7)
+        if (env.LINE_USER_ID) await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, env.LINE_USER_ID, [text(`✅ เชื่อม Google Health แล้ว\nต่อไปจะดึงการนอนให้อัตโนมัติทุกเช้า (06:00 และ 07:45) และพิมพ์ "การนอน" ดูได้ตลอด\n\n${r.text}`, MENU)]).catch(() => undefined)
+        return page('✅ เชื่อม Google Health สำเร็จ', 'ดึงการนอน 7 วันล่าสุดเข้าโค้ชแล้ว')
+      } catch (e) {
+        return page('เชื่อมไม่สำเร็จ', (e as Error).message.replace(/</g, '&lt;'))
+      }
+    }
     if (req.method === 'GET') return new Response('คู่ซ้อม LINE bot OK')
     if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
     const body = await req.text()
@@ -271,6 +359,10 @@ export default {
     const payload = JSON.parse(body) as { events?: LineEvent[]; selftest?: string }
     // ทดสอบตัวเอง (ต้องเซ็นด้วย channel secret): รันคำสั่ง แล้วให้ LINE ตรวจรูปแบบข้อความโดยไม่ส่งจริง
     // คืนเฉพาะสถานะ ไม่คืนเนื้อหา (log ของ GitHub Actions เป็นสาธารณะ)
+    if (payload.selftest === '__google') {
+      const st = await env.KV?.get(KV_STATUS)
+      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!googleCreds(env), connected: !!(await env.KV?.get(KV_REFRESH)), last: st ? JSON.parse(st) : null })
+    }
     if (payload.selftest) {
       const t0 = Date.now()
       try {
@@ -302,5 +394,10 @@ export default {
       })(),
     )
     return new Response('ok')
+  },
+
+  /** cron (เวลา UTC ใน wrangler.toml): ดึงการนอนจาก Google Health ก่อนงานโค้ชตอนเช้า/คืน */
+  async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runSleepSync(env).then(() => undefined))
   },
 }

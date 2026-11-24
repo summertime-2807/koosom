@@ -3,7 +3,7 @@ import { createHmac } from 'node:crypto'
 
 const url = process.env.WORKER_URL ?? 'https://raceplan-line-bot.sicasica03.workers.dev/'
 const secret = process.env.LINE_CHANNEL_SECRET?.trim()
-const cmds = (process.env.CMDS ?? 'วันนี้,สัปดาห์,สรุป,รายงาน,แข่ง,การ์ดเพซ,ผลแข่ง,รองเท้า,เพิ่มเติม,ถามโค้ช,เป้า,คำถาม,เมนู,พรุ่งนี้ควรซ้อมหนักไหม,รองเท้าคู่ไหนเหมาะกับวันแข่ง,เพซ easy ของผมควรเท่าไหร่').split(',')
+const cmds = (process.env.CMDS ?? '__google,การนอน,วันนี้,สัปดาห์,สรุป,รายงาน,แข่ง,การ์ดเพซ,ผลแข่ง,รองเท้า,เพิ่มเติม,ถามโค้ช,เป้า,คำถาม,เมนู,พรุ่งนี้ควรซ้อมหนักไหม,รองเท้าคู่ไหนเหมาะกับวันแข่ง,เพซ easy ของผมควรเท่าไหร่').split(',')
 
 async function main() {
   if (!secret) throw new Error('no LINE_CHANNEL_SECRET')
@@ -14,7 +14,7 @@ async function main() {
     const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-line-signature': sig }, body })
     const j = (await res.json().catch(() => ({ http: res.status }))) as Record<string, unknown>
     const wantAi = /ไหม|เท่าไหร่|เหมาะ/.test(cmd)
-    const ok = j.valid === 200 && !j.thrown && !j.aiFail && (!wantAi || j.ai === true)
+    const ok = cmd === '__google' ? !!j.kv : j.valid === 200 && !j.thrown && !j.aiFail && (!wantAi || j.ai === true)
     if (!ok) bad++
     console.log(`${ok ? 'OK  ' : 'FAIL'} ${JSON.stringify(j)}`)
   }

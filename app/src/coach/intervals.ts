@@ -54,6 +54,10 @@ export class IntervalsClient {
   wellness(oldest: string, newest: string, signal?: AbortSignal) {
     return this.req<IcuWellness[]>(`${this.a}/wellness?oldest=${oldest}&newest=${newest}`, { signal })
   }
+  /** อัปเดตค่า wellness ของวันหนึ่ง (เช่น การนอนจาก Google Health) */
+  updateWellness(date: string, fields: Partial<Record<keyof IcuWellness, number | null>>) {
+    return this.req<IcuWellness>(`${this.a}/wellness/${date}`, { method: 'PUT', body: { id: date, ...fields } })
+  }
   /** สร้าง/อัปเดตหลายรายการ โดยใช้ external_id กันซ้ำ */
   upsertEvents(events: Partial<IcuEvent>[]) {
     return this.req<IcuEvent[]>(`${this.a}/events/bulk?upsert=true`, { method: 'POST', body: events })

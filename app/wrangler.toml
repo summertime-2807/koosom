@@ -6,3 +6,12 @@ workers_dev = true
 # โค้ช AI (Cloudflare Workers AI · ฟรีวันละ 10,000 neurons)
 [ai]
 binding = "AI"
+
+# เก็บ refresh token ของ Google Health (id ใส่ให้อัตโนมัติตอน deploy)
+[[kv_namespaces]]
+binding = "KV"
+id = "__KV_ID__"
+
+# ดึงการนอนจาก Google Health ทุกเช้า 06:00 และ 07:45 (เวลาไทย) ก่อนข้อความโค้ช 08:07
+[triggers]
+crons = ["0 23 * * *", "45 0 * * *"]

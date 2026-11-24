@@ -63,6 +63,7 @@ export const MORE: QuickItem[] = [
   { label: '⏱ การ์ดเพซ', text: 'การ์ดเพซ' },
   { label: '🏅 วิเคราะห์ผลแข่ง', text: 'ผลแข่ง' },
   { label: '👟 รองเท้า', text: 'รองเท้า' },
+  { label: '😴 การนอน (Google)', text: 'การนอน' },
   { label: '🎯 เป้า & ความพร้อม', text: 'เป้า' },
   { label: '❓ คำถามค้าง', text: 'คำถาม' },
   { label: '↻ ซิงก์ & ปรับตาราง', text: 'ซิงก์' },
