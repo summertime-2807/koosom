@@ -213,7 +213,7 @@ async function wakeCheck(env: Env) {
   const r = await runSleepSync(env, 2)
   const last = r.store?.nights.at(-1)
   const today = todayBkk()
-  if (!last || last.date !== today || !last.endMs || Date.now() - last.endMs > 8 * 3600e3) return
+  if (!last || last.date !== today || !last.endMs || Date.now() - last.endMs > 4.5 * 3600e3) return // เกิน 4.5 ชม. ถือว่าไม่ใช่ "เพิ่งตื่น"
   if ((await env.KV.get(KV_WAKE)) === today) return
   const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
   const cfg = await client.loadConfig()
