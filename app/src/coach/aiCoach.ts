@@ -67,10 +67,10 @@ function clean(s: string): string {
     .trim()
 }
 
-/** ลองตามลำดับ — gemma 3 ภาษาไทยดีกว่า llama */
+/** ลองตามลำดับ (บัญชีฟรียังใช้ gemma 3 ไม่ได้) */
 /** โมเดลที่ตอบล่าสุด + ข้อผิดพลาดของโมเดลก่อนหน้า (ใช้ใน self-test) */
 export const aiTrace: { model?: string; skipped: string[] } = { skipped: [] }
-const AI_MODELS = ['@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']
+const AI_MODELS = ['@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']
 
 export async function askCoach(env: AiEnv, question: string, context: string, history: { q: string; a: string }[] = []): Promise<string> {
   const prompt = `ข้อมูลนักวิ่ง:\n${context}\n\nคำถาม: ${question}`
