@@ -27,13 +27,26 @@ const lineToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim()
 const lineUser = process.env.LINE_USER_ID?.trim()
 const today = process.env.COACH_TODAY?.trim() || new Date(Date.now() + 7 * 3600e3).toISOString().slice(0, 10) // เวลาไทย
 
+const dry = process.env.COACH_DRY === '1'
+
 async function line(messages: LineMessage[]) {
   if (!lineToken || !lineUser || !messages.length) return
+  if (dry) {
+    // ทดสอบ: ให้ LINE ตรวจรูปแบบข้อความโดยไม่ส่งจริง พิมพ์เฉพาะสถานะ
+    const res = await fetch('https://api.line.me/v2/bot/message/validate/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${lineToken}` },
+      body: JSON.stringify({ messages: messages.slice(0, 5) }),
+    })
+    console.log(`dry-run ${today} ${mode}: ${messages.map((m) => (m.type === 'flex' ? 'flex' : 'text')).join('+')} → LINE validate ${res.status}${res.ok ? '' : ' ' + (await res.text()).slice(0, 200)}`)
+    if (!res.ok) process.exitCode = 1
+    return
+  }
   await linePush(lineToken, lineUser, messages.slice(0, 5)).catch((e) => console.log('line push failed', (e as Error).message.slice(0, 60)))
 }
 
 async function notify(title: string, body: string) {
-  if (!topic) return
+  if (!topic || dry) return
   await fetch(`https://ntfy.sh/${encodeURIComponent(topic)}?title=${encodeURIComponent(title)}&tags=runner`, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain; charset=utf-8' },
@@ -90,7 +103,7 @@ async function main() {
 
   // ── night ──
   const data = await loadAndAnalyze(client, cfg, today)
-  const r = await commitReport(client, cfg, data, today)
+  const r = dry ? { applied: 0 } : await commitReport(client, cfg, data, today)
   console.log(`night: applied=${r.applied} questions=${data.report.questions.length} days=${data.report.days.length}`)
   const title = `${lightDot(data.report.overall)} โค้ชสรุป ${today.slice(5)}${data.report.questions.length ? ' ❓' : ''}`
   await notify(title, data.report.summary.slice(0, 3800))
@@ -105,7 +118,7 @@ async function main() {
       const { data: done } = await client.loadJson<{ activityId: string }>(`${REVIEW_PREFIX}${info.date}`, info.date)
       if (!done) {
         const review = analyzeRace(race, await client.activityStreams(race.id), cfg, true)
-        await client.saveJson(`${REVIEW_PREFIX}${info.date}`, info.date, `🏅 ผลแข่ง ${fmtHMS(review.finishSec)}`, { activityId: race.id, finishSec: review.finishSec, splitPct: review.splitPct }, review.verdict.join('\n'))
+        if (!dry) await client.saveJson(`${REVIEW_PREFIX}${info.date}`, info.date, `🏅 ผลแข่ง ${fmtHMS(review.finishSec)}`, { activityId: race.id, finishSec: review.finishSec, splitPct: review.splitPct }, review.verdict.join('\n'))
         msgs.push(flex(`🏅 ผลแข่ง ${fmtHMS(review.finishSec)}`, reviewFlex(review, true, cfg.goalSec && cfg.distKm ? cfg.goalSec / cfg.distKm : undefined), MORE))
         console.log('night: race review sent')
       }

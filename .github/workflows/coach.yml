@@ -9,6 +9,12 @@ on:
       mode:
         description: 'night หรือ morning'
         default: night
+      today:
+        description: 'จำลองวันที่ YYYY-MM-DD (ว่าง = วันนี้) — ใช้ทดสอบ'
+        default: ''
+      dry:
+        description: '1 = ทดสอบ ไม่ส่ง LINE จริง ไม่เขียนปฏิทิน'
+        default: '0'
 
 permissions:
   contents: read
@@ -38,6 +44,8 @@ jobs:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
           LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          COACH_TODAY: ${{ github.event.inputs.today }}
+          COACH_DRY: ${{ github.event.inputs.dry }}
         run: |
           MODE="${{ github.event.inputs.mode }}"
           if [ -z "$MODE" ]; then
