@@ -68,6 +68,8 @@ function clean(s: string): string {
 }
 
 /** ลองตามลำดับ — gemma 3 ภาษาไทยดีกว่า llama */
+/** โมเดลที่ตอบล่าสุด + ข้อผิดพลาดของโมเดลก่อนหน้า (ใช้ใน self-test) */
+export const aiTrace: { model?: string; skipped: string[] } = { skipped: [] }
 const AI_MODELS = ['@cf/google/gemma-3-12b-it', '@cf/meta/llama-3.3-70b-instruct-fp8-fast', '@cf/meta/llama-3.1-8b-instruct']
 
 export async function askCoach(env: AiEnv, question: string, context: string, history: { q: string; a: string }[] = []): Promise<string> {
@@ -88,7 +90,10 @@ export async function askCoach(env: AiEnv, question: string, context: string, hi
     if (res.ok) {
       const j = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] }
       const t = j.candidates?.[0]?.content?.parts?.map((p) => p.text ?? '').join('')
-      if (t) return clean(t)
+      if (t) {
+        aiTrace.model = 'gemini-flash-latest'
+        return clean(t)
+      }
     }
     if (!env.AI) throw new Error(`Gemini ${res.status}`)
   }
@@ -102,14 +107,19 @@ export async function askCoach(env: AiEnv, question: string, context: string, hi
     { role: 'user', content: prompt },
   ]
   let lastErr = ''
+  aiTrace.skipped = []
   for (const model of AI_MODELS) {
     try {
       const out = (await env.AI.run(model, { messages, max_tokens: 700, temperature: 0.5 })) as { response?: unknown; choices?: { message?: { content?: string } }[] }
       const t = typeof out?.response === 'string' ? out.response : out?.choices?.[0]?.message?.content
-      if (t && t.trim()) return clean(t)
+      if (t && t.trim()) {
+        aiTrace.model = model
+        return clean(t)
+      }
       lastErr = `${model}: ว่าง ${JSON.stringify(out).slice(0, 80)}`
     } catch (e) {
       lastErr = `${model}: ${(e as Error).message.slice(0, 100)}`
+      aiTrace.skipped.push(lastErr)
     }
   }
   throw new Error(lastErr || 'AI ไม่ตอบ')

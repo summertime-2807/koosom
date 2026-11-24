@@ -27,6 +27,7 @@ import {
 import { paceCardFlex, raceWeekFlex, reviewFlex, shoesFlex, weeklyFlex } from '../src/coach/flex'
 import { askCoach, buildContext } from '../src/coach/aiCoach'
 import type { AiEnv } from '../src/coach/aiCoach'
+import { aiTrace } from '../src/coach/aiCoach'
 import { addDays, daysBetween } from '../src/engine/trainingEngine'
 import { fmtHMS } from '../src/lib/time'
 
@@ -282,7 +283,7 @@ export default {
         const vtxt = v.ok ? '' : (await v.text()).slice(0, 300)
         const first = msgs[0]
         const preview = first?.type === 'text' ? first.text.slice(0, 2) : first?.altText.slice(0, 2)
-        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, count: msgs.length, types: msgs.map((m) => m.type), valid: v.status, error: vtxt || undefined, ai: first?.type === 'text' && first.text.startsWith('💬'), aiFail: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้'), aiErr: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้') ? /\(([^)]*)\)/.exec(first.text)?.[1] : undefined, lead: preview })
+        return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, count: msgs.length, types: msgs.map((m) => m.type), valid: v.status, error: vtxt || undefined, ai: first?.type === 'text' && first.text.startsWith('💬'), aiFail: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้'), aiErr: first?.type === 'text' && first.text.includes('โค้ช AI ตอบไม่ได้') ? /\(([^)]*)\)/.exec(first.text)?.[1] : undefined, lead: preview, model: aiTrace.model, skipped: aiTrace.skipped.length ? aiTrace.skipped : undefined })
       } catch (e) {
         return Response.json({ cmd: payload.selftest, ms: Date.now() - t0, thrown: (e as Error).message.slice(0, 200) })
       }
