@@ -67,6 +67,7 @@ export const MENU: QuickItem[] = [
 
 /** เมนู "เพิ่มเติม" จาก rich menu */
 export const MORE: QuickItem[] = [
+  { label: '📖 วิธีใช้', text: 'วิธีใช้' },
   { label: '💼 ติดงาน', text: 'ติดงาน' },
   { label: '⏱ ยุ่ง วิ่งสั้นวันนี้', text: 'วิ่งสั้น' },
   { label: '🏁 สัปดาห์แข่ง', text: 'แข่ง' },

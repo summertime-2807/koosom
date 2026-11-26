@@ -330,9 +330,9 @@ export async function handleBadminton(c: BCtx): Promise<LineMessage[] | null> {
     return [text(`🏆 ${next.name} · ${dayLabel(next.date)}\n${left > 0 ? `อีก ${left} วัน` : 'วันนี้! สู้ ๆ'}\n\n✅ ${tip.title}\n${tip.tips.map((x) => `• ${x}`).join('\n')}${others.length ? `\n\nรายการถัดไป:\n${others.join('\n')}` : ''}`, BADMINTON_MENU)]
   }
 
-  if (/^(เมนู|menu|help|ช่วย|สวัสดี|hi|hello|หวัดดี)$/i.test(msg))
-    return [text(`สวัสดีครับ 🏸 โค้ชคู่ซ้อม (แบดมินตัน)\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "ไหล่ขวาตึงหลังตบ ควรพักไหม"\n• "ก่อนแข่งควรกินอะไร"\n\nบันทึกเร็ว: "แบด 90 นาที เหนื่อย 7"`, BADMINTON_MENU)]
-  if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', [...BADMINTON_MENU.slice(4), { label: '🔔 แจ้งเตือน', text: 'แจ้งเตือน' }, { label: '⌚ เชื่อม Apple Watch', text: 'เชื่อม apple' }, { label: '🔗 เชื่อม Google', text: 'เชื่อม google' }, { label: '🔄 จัดตารางใหม่', text: 'จัดตาราง' }])]
+  if (/^(เมนู|menu|สวัสดี|hi|hello|หวัดดี)$/i.test(msg))
+    return [text(`สวัสดีครับ 🏸 โค้ชคู่ซ้อม (แบดมินตัน)\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "ไหล่ขวาตึงหลังตบ ควรพักไหม"\n• "ก่อนแข่งควรกินอะไร"\n\nบันทึกเร็ว: "แบด 90 นาที เหนื่อย 7"\n📖 ไม่แน่ใจ พิมพ์ "วิธีใช้"`, BADMINTON_MENU)]
+  if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', [{ label: '📖 วิธีใช้', text: 'วิธีใช้' }, ...BADMINTON_MENU.slice(4), { label: '🔔 แจ้งเตือน', text: 'แจ้งเตือน' }, { label: '⌚ เชื่อม Apple Watch', text: 'เชื่อม apple' }, { label: '🔗 เชื่อม Google', text: 'เชื่อม google' }, { label: '🔄 จัดตารางใหม่', text: 'จัดตาราง' }])]
 
   return null // ให้คำสั่งร่วม (การนอน, ถามโค้ช AI, เจ็บ ฯลฯ) จัดการต่อ
 }

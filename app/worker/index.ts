@@ -40,6 +40,7 @@ import type { User, Sport } from '../src/coach/users'
 import { createInvite, deleteUser, getUser, listMembers, readInvite, registerToken, readRegisterToken, ukey, updateUser } from '../src/coach/users'
 import { handleRegister, registerForm, errorPage } from './register'
 import { handleBadminton, BADMINTON_MENU } from '../src/coach/badmintonBot'
+import { GUIDE_RE, guideMessages } from '../src/coach/guide'
 import { HOOK_PATH, HOOK_STALE_MIN, KV_HOOK_START, hookDecide, hookMessages, hookSetup, hookToken, readHookToken } from '../src/coach/watchHook'
 import { nightsFromWellness } from '../src/coach/sleepCoach'
 
@@ -168,7 +169,7 @@ async function saveHist(uid: string, h: Hist) {
 }
 
 const GREETING = (plan?: string) =>
-  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · การนอน · ติดงาน · วิ่งสั้น · เจ็บ <อาการ>`
+  `สวัสดีครับ 🏃 โค้ชคู่ซ้อม${plan ? ` · ${plan}` : ''}\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "เมื่อคืนนอนน้อย วันนี้ควรซ้อมไหม"\n• "เพซ easy ของผมควรเท่าไหร่"\n\nคำสั่ง: วันนี้ · สัปดาห์ · สรุป · รายงาน · แข่ง · การ์ดเพซ · ผลแข่ง · รองเท้า · การนอน · ติดงาน · วิ่งสั้น · เจ็บ <อาการ>\n\n📖 ไม่แน่ใจ พิมพ์ "วิธีใช้"`
 
 
 // ── 💼 ติดงาน ──
@@ -365,6 +366,9 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     return [text(pushM[1] === 'เปิด' ? '🔔 เปิดแล้ว — จะส่งข้อความหลังคุณตื่นวันละครั้ง' : '🔕 ปิดแล้ว — ยังกดดูทุกอย่างจากเมนูได้ตามปกติ')]
   }
 
+  // 📖 วิธีใช้ (ตามกีฬา)
+  if (GUIDE_RE.test(msg)) return guideMessages(user.sport)
+
   // ⌚ เชื่อม Apple Watch ผ่านคำสั่งลัด (ฟรี)
   if (/^(เชื่อม ?apple( ?watch)?|เชื่อม ?แอปเปิ้ล|apple ?watch|เชื่อม ?นาฬิกา|คำสั่งลัด|shortcuts?)$/i.test(msg)) {
     if (!env.KV) return [text('ระบบยังไม่พร้อม (ไม่มี KV)')]
@@ -475,7 +479,7 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     return [text(`✅ ยินดีต้อนรับกลับครับ!\nยกเลิก ${r.ended.join(', ')} · คืนตารางเดิม ${r.restored} รายการ${ramp}\n\n⌚ ซิงก์นาฬิกาเพื่ออัปเดต workout`, MENU)]
   }
 
-  if (/^(เมนู|menu|help|ช่วย|สวัสดี|hi|hello|หวัดดี)$/i.test(msg)) return [text(GREETING(cfg.planName), MENU)]
+  if (/^(เมนู|menu|สวัสดี|hi|hello|หวัดดี)$/i.test(msg)) return [text(GREETING(cfg.planName), MENU)]
   if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', MORE)]
   if (/^(ถามโค้ช|โค้ช ?ai|ai)$/i.test(msg)) return [text('💬 พิมพ์คำถามมาได้เลยครับ เช่น\n• "ขาตึงนิดหน่อย พรุ่งนี้ควรวิ่งอินเทอร์วัลไหม"\n• "สัปดาห์นี้ซ้อมขาดไป 2 วัน ต้องชดเชยไหม"\n• "เป้า sub 2 ยังไหวไหม"')]
 
@@ -675,8 +679,8 @@ export default {
           await linkRichMenu(env, uid, sport).catch(() => undefined)
           const first =
             sport === 'badminton'
-              ? `🏸 ยินดีต้อนรับ ${name}!\nเริ่มจากพิมพ์ "ตั้งค่าแบด" เพื่อบอกวันที่ลงคอร์ดและระดับการเล่น แล้วโค้ชจะจัดตารางฝึกให้\n\nใช้ Apple Watch: พิมพ์ "เชื่อม apple" ให้คู่ซ้อมรู้เองทุกครั้งที่เล่นจบ (ฟรี)`
-              : `🏃 ยินดีต้อนรับ ${name}!\nพิมพ์ "เมนู" เพื่อดูสิ่งที่ทำได้ · สร้างแผนวิ่งได้ที่แอปคู่ซ้อม https://summertime-2807.github.io/koosom/`
+              ? `🏸 ยินดีต้อนรับ ${name}!\nเริ่มจากพิมพ์ "ตั้งค่าแบด" เพื่อบอกวันที่ลงคอร์ดและระดับการเล่น แล้วโค้ชจะจัดตารางฝึกให้\n\nใช้ Apple Watch: พิมพ์ "เชื่อม apple" ให้คู่ซ้อมรู้เองทุกครั้งที่เล่นจบ (ฟรี)\n\n📖 ดูวิธีใช้ทั้งหมด: พิมพ์ "วิธีใช้"`
+              : `🏃 ยินดีต้อนรับ ${name}!\nพิมพ์ "วิธีใช้" เพื่อดูวิธีใช้ทีละขั้น · สร้างแผนวิ่งได้ที่แอปคู่ซ้อม https://summertime-2807.github.io/koosom/`
           await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, uid, [text(first, sport === 'badminton' ? BADMINTON_MENU : MENU)])
         })
       }
