@@ -12,28 +12,30 @@
 </head>
 <body>
 <h1>คู่ซ้อม (KooSom) — นโยบายความเป็นส่วนตัว</h1>
-<p class="muted">ปรับปรุงล่าสุด 24 พฤศจิกายน 2026</p>
+<p class="muted">ปรับปรุงล่าสุด 26 พฤศจิกายน 2026</p>
 
-<p>คู่ซ้อมเป็นเครื่องมือวางแผนวิ่งและโค้ชส่วนตัว ใช้งานโดยเจ้าของบัญชีเพียงคนเดียว ไม่ได้ให้บริการแก่บุคคลทั่วไป</p>
+<p>คู่ซ้อมเป็นโค้ชวิ่งและแบดมินตันส่วนตัวผ่าน LINE ขณะนี้อยู่ในช่วงทดสอบ (เบต้า) เปิดให้เฉพาะผู้ที่ได้รับเชิญ ไม่มีค่าใช้จ่าย</p>
 
 <h2>ข้อมูลที่ใช้</h2>
 <ul>
   <li><b>Google Health</b>: อ่านเฉพาะข้อมูลการนอน (เวลาเข้านอน/ตื่น นาทีที่หลับ) ผ่านสิทธิ์ <code>googlehealth.sleep.readonly</code> เท่านั้น</li>
-  <li><b>Intervals.icu / Garmin</b>: แผนซ้อม ผลการวิ่ง และค่าความพร้อมของร่างกายของเจ้าของบัญชี</li>
+  <li><b>Intervals.icu</b> (ข้อมูลจากนาฬิกา Garmin/Apple Watch): แผนฝึก ผลการออกกำลังกาย อัตราการเต้นหัวใจ HRV และการนอน</li>
+  <li><b>ข้อมูลที่คุณพิมพ์ใน LINE</b>: บันทึกการเล่น ความเหนื่อย อาการเจ็บ และคำถามถึงโค้ช</li>
 </ul>
+<p>ข้อมูลข้างต้นเป็น <b>ข้อมูลสุขภาพ</b> ซึ่งเป็นข้อมูลส่วนบุคคลอ่อนไหวตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล (PDPA) เราประมวลผลโดยอาศัย <b>ความยินยอมโดยชัดแจ้ง</b> ที่คุณให้ตอนลงทะเบียน และคุณถอนความยินยอมได้ทุกเมื่อ</p>
 
 <h2>ใช้ข้อมูลทำอะไร</h2>
-<p>ข้อมูลการนอนถูกเขียนลงบันทึก wellness ใน Intervals.icu ของเจ้าของบัญชีเอง เพื่อคำนวณความพร้อมก่อนซ้อม และส่งสรุปให้เจ้าของบัญชีผ่าน LINE เท่านั้น ไม่มีการขาย แชร์ หรือส่งต่อข้อมูลให้บุคคลที่สาม ไม่ใช้เพื่อโฆษณา และไม่ใช้ฝึกโมเดล AI</p>
+<p>ใช้เพื่อทำตารางฝึก คำนวณความพร้อม ภาระการฝึก และคำแนะนำการนอน แล้วส่งให้ <b>คุณคนเดียว</b> ผ่าน LINE ไม่มีการขาย แชร์ หรือส่งต่อข้อมูลให้บุคคลอื่น และไม่ใช้เพื่อโฆษณา เมื่อคุณถามโค้ช AI ข้อความและสรุปข้อมูลที่จำเป็นจะถูกส่งไปประมวลผลที่ผู้ให้บริการ AI (Cloudflare Workers AI หรือ Google Gemini) เพื่อสร้างคำตอบเท่านั้น</p>
 
 <h2>การจัดเก็บ</h2>
-<p>เก็บเฉพาะ refresh token ของ Google ไว้ใน Cloudflare Workers KV ที่เป็นของเจ้าของบัญชี ไม่เก็บสำเนาข้อมูลสุขภาพไว้ที่อื่น</p>
+<p>ข้อมูลสุขภาพอยู่ในบัญชี Intervals.icu ของคุณเอง ระบบเก็บเพียงคีย์ Intervals (เข้ารหัส AES-GCM) และ token ของ Google (ถ้าเชื่อม) ไว้ใน Cloudflare Workers KV หากเกิดข้อมูลรั่วไหล เราจะแจ้งคุณและหน่วยงานที่เกี่ยวข้องตามที่กฎหมายกำหนด</p>
 
 <h2>การยกเลิก</h2>
-<p>ถอนสิทธิ์ได้ทุกเมื่อที่ <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> แล้วเลือก "คู่ซ้อม" → Remove access</p>
+<p>พิมพ์ <b>ลบบัญชี</b> ในแชท LINE คู่ซ้อม เพื่อลบคีย์และการเชื่อมต่อทั้งหมด · ถอนสิทธิ์ Google ได้ที่ <a href="https://myaccount.google.com/permissions">myaccount.google.com/permissions</a> · ยกเลิก API key ได้ที่ Intervals.icu → Settings</p>
 
 <hr style="border-color:#334155;margin:2rem 0">
 <h1>KooSom — Privacy Policy</h1>
-<p>KooSom is a personal running planner and coach used only by its owner; it is not offered to the public.</p>
+<p>KooSom is a running and badminton coach on LINE, currently in an invite-only free beta.</p>
 <p><b>Data accessed:</b> sleep sessions from Google Health (read-only scope <code>googlehealth.sleep.readonly</code>), plus the owner's own training data in Intervals.icu.</p>
 <p><b>Use:</b> sleep duration is written to the owner's own Intervals.icu wellness log to compute training readiness and is summarised to the owner via LINE. Data is never sold, shared with third parties, used for advertising, or used to train AI models.</p>
 <p><b>Storage:</b> only the Google refresh token is stored, in the owner's Cloudflare Workers KV.</p>

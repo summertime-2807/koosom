@@ -215,7 +215,7 @@ export function sleepFlex(st: SleepStats, advice: string[]): Node {
   const last = st.last
   const body: Node[] = [
     box('baseline', [txt(last ? dur(last.asleepMin) : '—', { size: 'xxl', weight: 'bold', color: last && last.asleepMin >= target - 30 ? C.accent : C.warn, flex: 0 }), txt(' ล่าสุด', { color: C.sub, flex: 0, margin: 'sm' })]),
-    txt(last ? `${dayLabel(last.date)} · ${last.start}–${last.end}${last.inBedMin ? ` · หลับจริง ${Math.round((last.asleepMin / last.inBedMin) * 100)}%` : ''}${last.napMin ? ` · งีบ ${last.napMin} น.` : ''}` : 'ยังไม่มีข้อมูล', { color: C.sub, size: 'xs' }),
+    txt(last ? `${dayLabel(last.date)}${last.start ? ` · ${last.start}–${last.end}` : ''}${last.inBedMin ? ` · หลับจริง ${Math.round((last.asleepMin / last.inBedMin) * 100)}%` : ''}${last.napMin ? ` · งีบ ${last.napMin} น.` : ''}` : 'ยังไม่มีข้อมูล', { color: C.sub, size: 'xs' }),
     sep(),
     kv('หนี้การนอน 7 วัน', dur(st.debtMin), st.debtMin >= 360 ? C.bad : st.debtMin >= 180 ? C.warn : C.accent),
     ...(st.avgMin != null ? [kv('เฉลี่ย/วัน', `${dur(st.avgMin)} · เป้า ${dur(target)}`)] : []),
@@ -228,5 +228,5 @@ export function sleepFlex(st: SleepStats, advice: string[]): Node {
     txt('💡 คำแนะนำ', { weight: 'bold', margin: 'md' }),
     ...advice.map((a) => txt(`• ${a}`, { size: 'xs', margin: 'xs' })),
   ]
-  return bubble('😴 โค้ชการนอน', 'จาก Google Health · นับตามวันที่ตื่น', body)
+  return bubble('😴 โค้ชการนอน', st.nights7.some((n) => n.start) ? 'จาก Google Health · นับตามวันที่ตื่น' : 'จากนาฬิกา (ผ่าน Intervals) · นับตามวันที่ตื่น', body)
 }

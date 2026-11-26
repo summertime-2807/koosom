@@ -57,6 +57,18 @@ def icon(kind, cx, cy, col):
         d.rounded_rectangle([cx - s, cy - 30, cx + s, cy + s - 6], 14, outline=col, width=w)
         d.rounded_rectangle([cx - 30, cy - 58, cx + 30, cy - 26], 10, outline=col, width=w)
         d.line([cx - s, cy + 8, cx + s, cy + 8], fill=col, width=w)
+    elif kind == "shuttle":  # ลูกขนไก่
+        d.ellipse([cx - 22, cy + 26, cx + 22, cy + s], fill=col)
+        d.polygon([(cx - 20, cy + 32), (cx - s + 4, cy - s + 6), (cx + s - 4, cy - s + 6), (cx + 20, cy + 32)], outline=col, width=w)
+        d.line([cx, cy + 30, cx, cy - s + 8], fill=col, width=6)
+        d.line([cx - 10, cy + 30, cx - 34, cy - s + 8], fill=col, width=6)
+        d.line([cx + 10, cy + 30, cx + 34, cy - s + 8], fill=col, width=6)
+    elif kind == "shield":
+        d.polygon([(cx, cy - s), (cx + s - 4, cy - s + 22), (cx + s - 12, cy + 18), (cx, cy + s), (cx - s + 12, cy + 18), (cx - s + 4, cy - s + 22)], outline=col, width=w)
+        d.line([cx - 22, cy + 2, cx - 4, cy + 20, cx + 26, cy - 18], fill=col, width=w, joint="curve")
+    elif kind == "moon":
+        d.ellipse([cx - s + 6, cy - s + 6, cx + s - 6, cy + s - 6], fill=col)
+        d.ellipse([cx - s + 34, cy - s - 6, cx + s + 18, cy + s - 30], fill=CELL)
     elif kind == "more":
         for y in (cy - 36, cy, cy + 36):
             d.rounded_rectangle([cx - s, y - 6, cx + s, y + 6], 6, fill=col)
@@ -78,16 +90,29 @@ def mixed(xy, text, fonts, col):
         x += d.textlength(run, font=f)
 
 
-cells = [
-    ("today", "วันนี้", "ซ้อมอะไรดี", ACCENT),
-    ("week", "สัปดาห์", "7 วันข้างหน้า", ACCENT),
-    ("battery", "สรุป", "แบต & ความพร้อม", ACCENT),
-    ("sync", "ซิงก์", "อัปเดตทั้งหมด", ACCENT),
-    ("chat", "ถามโค้ช", "AI ตอบจากข้อมูลจริง", ACC2),
-    ("report", "รายงาน", "สรุปสัปดาห์นี้", ACC2),
-    ("busy", "ติดงาน", "ข้าม/วิ่งสั้น", ACC2),
-    ("more", "เพิ่มเติม", "แข่ง · รองเท้า · นอน", ACC2),
-]
+VARIANT = sys.argv[2] if len(sys.argv) > 2 else "run"
+if VARIANT == "badminton":
+    cells = [
+        ("today", "วันนี้", "ฝึกอะไรดี", ACCENT),
+        ("week", "สัปดาห์", "ตาราง 7 วัน", ACCENT),
+        ("shuttle", "บันทึกเล่น", "เวลา + ความเหนื่อย", ACCENT),
+        ("report", "ภาระ", "เสี่ยงเจ็บไหม", ACCENT),
+        ("shield", "กันเจ็บ", "ไหล่ เข่า ข้อเท้า", ACC2),
+        ("moon", "การนอน", "หนี้การนอน", ACC2),
+        ("chat", "ถามโค้ช", "AI ตอบจากข้อมูลจริง", ACC2),
+        ("more", "เพิ่มเติม", "แข่ง · วอร์ม · ตั้งค่า", ACC2),
+    ]
+else:
+    cells = [
+        ("today", "วันนี้", "ซ้อมอะไรดี", ACCENT),
+        ("week", "สัปดาห์", "7 วันข้างหน้า", ACCENT),
+        ("battery", "สรุป", "แบต & ความพร้อม", ACCENT),
+        ("sync", "ซิงก์", "อัปเดตทั้งหมด", ACCENT),
+        ("chat", "ถามโค้ช", "AI ตอบจากข้อมูลจริง", ACC2),
+        ("report", "รายงาน", "สรุปสัปดาห์นี้", ACC2),
+        ("busy", "ติดงาน", "ข้าม/วิ่งสั้น", ACC2),
+        ("more", "เพิ่มเติม", "แข่ง · รองเท้า · นอน", ACC2),
+    ]
 
 for i, (kind, label, sub, col) in enumerate(cells):
     c, r = i % COLS, i // COLS

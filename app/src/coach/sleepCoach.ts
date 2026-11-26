@@ -167,3 +167,11 @@ export function kindFromName(name: string): TrainKind {
   if (/tempo|interval|threshold|เทมโป|อินเทอร์วัล|เพซแข่ง|race pace|fartlek|hill|x\s*\d+|\d+\s*x/i.test(name)) return 'quality'
   return 'easy'
 }
+
+/** การนอนจาก wellness ของ Intervals (Apple Watch/Garmin) — มีแค่ระยะเวลา ไม่มีเวลาเข้านอน/ตื่น */
+export function nightsFromWellness(w: { id: string; sleepSecs?: number | null }[]): NightSleep[] {
+  return w
+    .filter((x) => (x.sleepSecs ?? 0) >= 3600)
+    .map((x) => ({ date: x.id, asleepMin: Math.round((x.sleepSecs ?? 0) / 60), inBedMin: 0, start: '', end: '', sessions: 1 }))
+    .sort((a, b) => a.date.localeCompare(b.date))
+}

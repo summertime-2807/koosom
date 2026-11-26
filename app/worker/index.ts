@@ -36,6 +36,11 @@ import { loadSleepStore } from '../src/coach/googleHealth'
 import { bedtimeFor, dur, kindFromName, napPlan, sleepAdvice, sleepStats, wakeTimesFrom } from '../src/coach/sleepCoach'
 import { sleepFlex } from '../src/coach/flex'
 import { fmtHMS } from '../src/lib/time'
+import type { User, Sport } from '../src/coach/users'
+import { createInvite, deleteUser, getUser, listMembers, readInvite, registerToken, readRegisterToken, ukey, updateUser } from '../src/coach/users'
+import { handleRegister, registerForm, errorPage } from './register'
+import { handleBadminton, BADMINTON_MENU } from '../src/coach/badmintonBot'
+import { nightsFromWellness } from '../src/coach/sleepCoach'
 
 export interface Env extends AiEnv {
   LINE_CHANNEL_ACCESS_TOKEN: string
@@ -61,32 +66,57 @@ async function hmacHex(secret: string, msg: string): Promise<string> {
   const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(msg))
   return [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
-/** ลิงก์เชื่อม Google ใช้ได้ 20 นาที และเซ็นด้วย channel secret (คนอื่นเอาไปเชื่อมบัญชีตัวเองแทนไม่ได้) */
-async function makeState(env: Env): Promise<string> {
+/** ลิงก์เชื่อม Google ใช้ได้ 20 นาที เซ็นด้วย channel secret และผูกกับผู้ใช้ (คนอื่นเอาไปใช้แทนไม่ได้) */
+async function makeState(env: Env, uid: string): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + 20 * 60
-  return `${exp}.${await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}`)}`
+  const u = btoa(uid).replace(/=+$/, '')
+  return `${exp}.${u}.${await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}:${uid}`)}`
 }
-async function checkState(env: Env, state: string | null): Promise<boolean> {
-  const [exp, sig] = (state ?? '').split('.')
-  if (!exp || !sig || Number(exp) < Date.now() / 1000) return false
-  return (await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}`)) === sig
+async function checkState(env: Env, state: string | null): Promise<string | null> {
+  const [exp, u, sig] = (state ?? '').split('.')
+  if (!exp || !u || !sig || Number(exp) < Date.now() / 1000) return null
+  let uid: string
+  try {
+    uid = atob(u)
+  } catch {
+    return null
+  }
+  return (await hmacHex(env.LINE_CHANNEL_SECRET, `google:${exp}:${uid}`)) === sig ? uid : null
 }
 
-async function runSleepSync(env: Env, days = 4): Promise<{ ok: boolean; text: string; store?: SleepStore }> {
+const clientOf = (u: User) => new IntervalsClient(u.athleteId, u.apiKey)
+
+async function runSleepSync(env: Env, user: User, days = 4): Promise<{ ok: boolean; text: string; store?: SleepStore }> {
   const creds = googleCreds(env)
-  const refresh = await env.KV?.get(KV_REFRESH)
+  const refresh = await env.KV?.get(ukey(user, KV_REFRESH))
   if (!creds || !refresh || !env.KV) return { ok: false, text: 'ยังไม่ได้เชื่อม Google Health' }
-  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  const client = clientOf(user)
   try {
     const r = await syncSleep(client, creds, refresh, todayBkk(), days)
-    await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: true, nights: r.written }))
+    await env.KV.put(ukey(user, KV_STATUS), JSON.stringify({ at: new Date().toISOString(), ok: true, nights: r.written }))
     const lines = r.nights.slice(-5).map((n) => `${dayLabel(n.date)}  ${fmtNight(n)}`)
     return { ok: true, text: lines.length ? lines.join('\n') : 'ยังไม่มีข้อมูลการนอนใน 4 วันล่าสุด', store: r.store }
   } catch (e) {
     const msg = (e as Error).message.slice(0, 200)
-    await env.KV.put(KV_STATUS, JSON.stringify({ at: new Date().toISOString(), ok: false, error: msg }))
+    await env.KV.put(ukey(user, KV_STATUS), JSON.stringify({ at: new Date().toISOString(), ok: false, error: msg }))
     return { ok: false, text: msg }
   }
+}
+
+/** ประวัติการนอนของผู้ใช้: จาก Google Health (ถ้าเชื่อม) ไม่งั้นจาก wellness ของ Intervals (เช่น Apple Watch ผ่าน HealthFit) */
+async function sleepNights(env: Env, user: User, client: IntervalsClient, sync = false) {
+  const google = !!(await env.KV?.get(ukey(user, KV_REFRESH)))
+  if (google) {
+    if (sync) {
+      const r = await runSleepSync(env, user)
+      if (r.store) return { nights: r.store.nights, source: 'google' as const, error: r.ok ? undefined : r.text }
+    }
+    const st = await loadSleepStore(client).catch(() => null)
+    if (st) return { nights: st.nights, source: 'google' as const }
+  }
+  const today = todayBkk()
+  const w = await client.wellness(addDays(today, -21), today)
+  return { nights: nightsFromWellness(w), source: 'wellness' as const }
 }
 
 const page = (title: string, body: string) =>
@@ -168,8 +198,8 @@ const AFTER_BUSY = [
   { label: '🗓 7 วันข้างหน้า', text: 'สัปดาห์' },
 ]
 
-async function doBusy(env: Env, to: string, today: string): Promise<LineMessage[]> {
-  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+async function doBusy(user: User, to: string, today: string): Promise<LineMessage[]> {
+  const client = clientOf(user)
   const cfg = await client.loadConfig()
   if (!cfg) return [text('ยังไม่ได้ตั้งค่าโค้ช', MENU)]
   if (to < today) return [text('เลือกวันที่วันนี้หรือหลังจากนี้นะครับ', busyMenu(today))]
@@ -207,52 +237,145 @@ function bedtimeText(wake: string, st: ReturnType<typeof sleepStats>): string {
   return L.join('\n')
 }
 
-/** ตรวจว่าเพิ่งตื่น → ส่ง "☀️ ตื่นแล้ว" ครั้งเดียวต่อวัน */
-async function wakeCheck(env: Env) {
-  if (!env.LINE_USER_ID || !env.KV) return
-  const r = await runSleepSync(env, 2)
-  const last = r.store?.nights.at(-1)
+/** ตรวจว่าเพิ่งตื่น → ส่ง "☀️ ตื่นแล้ว" ครั้งเดียวต่อวัน (เฉพาะคนที่เปิดรับข้อความอัตโนมัติ) */
+async function wakeCheck(env: Env, user: User) {
+  if (!env.KV || !user.push) return
   const today = todayBkk()
-  if (!last || last.date !== today || !last.endMs || Date.now() - last.endMs > 4.5 * 3600e3) return // เกิน 4.5 ชม. ถือว่าไม่ใช่ "เพิ่งตื่น"
-  if ((await env.KV.get(KV_WAKE)) === today) return
-  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  if ((await env.KV.get(ukey(user, KV_WAKE))) === today) return
+  const client = clientOf(user)
+  const google = !!(await env.KV.get(ukey(user, KV_REFRESH)))
+  let nights
+  let lastLine: string
+  if (google) {
+    const r = await runSleepSync(env, user, 2)
+    const last = r.store?.nights.at(-1)
+    if (!last || last.date !== today || !last.endMs || Date.now() - last.endMs > 4.5 * 3600e3) return // เกิน 4.5 ชม. ถือว่าไม่ใช่ "เพิ่งตื่น"
+    nights = r.store!.nights
+    lastLine = `☀️ ตื่นแล้ว · นอน ${dur(last.asleepMin)} (${last.start}–${last.end})`
+  } else {
+    // Apple Watch/อื่น ๆ: ถือว่าตื่นเมื่อการนอนของวันนี้เข้ามาใน Intervals
+    const w = await client.wellness(addDays(today, -21), today)
+    const t = w.find((x) => x.id === today && (x.sleepSecs ?? 0) > 3600)
+    if (!t) return
+    nights = nightsFromWellness(w)
+    lastLine = `☀️ อรุณสวัสดิ์ · นอน ${dur((t.sleepSecs ?? 0) / 60)}`
+  }
   const cfg = await client.loadConfig()
   if (!cfg) return
-  await env.KV.put(KV_WAKE, today)
-  const st = sleepStats(r.store!.nights, today, cfg.sleepTargetMin)
+  await env.KV.put(ukey(user, KV_WAKE), today)
+  const st = sleepStats(nights, today, cfg.sleepTargetMin)
+  if (user.sport === 'badminton') {
+    const { badmintonWake } = await import('../src/coach/badmintonBot')
+    const msgs = await badmintonWake(client, cfg, today, st, lastLine)
+    if (msgs.length) await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, user.uid, msgs)
+    return
+  }
   const data = await loadAndAnalyze(client, cfg, today)
   await commitReport(client, cfg, data, today)
   const fresh = await loadAndAnalyze(client, cfg, today)
   const evs = plannedFor(fresh.events, today)
   const kind = evs.length ? kindFromName(evs.map((e) => e.name ?? '').join(' ')) : 'rest'
-  const L = [`☀️ ตื่นแล้ว · นอน ${dur(last.asleepMin)} (${last.start}–${last.end})`, `หนี้การนอน 7 วัน ${dur(st.debtMin)} · ${lightDot(fresh.report.overall)} แบตเตอรี่`, '']
+  const L = [lastLine, `หนี้การนอน 7 วัน ${dur(st.debtMin)} · ${lightDot(fresh.report.overall)} แบตเตอรี่`, '']
   L.push(...sleepAdvice(st, kind).slice(0, 3).map((a) => `💡 ${a}`), '')
   if (evs.length) for (const e of evs) L.push(`📅 วันนี้: ${e.name}`, workoutLines(e))
   else L.push('📅 วันนี้พัก / เดินเบา ๆ')
   const qs = fresh.openQuestions.filter((q) => q.date === today)
-  await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, env.LINE_USER_ID, [text(L.join('\n').trim(), sleepQuick()), ...questionMessages(qs)].slice(0, 5))
+  await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, user.uid, [text(L.join('\n').trim(), sleepQuick()), ...questionMessages(qs)].slice(0, 5))
 }
 
 let workerOrigin = 'https://raceplan-line-bot.sicasica03.workers.dev'
 
-async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
+// ── ผู้ที่ยังไม่ลงทะเบียน: เข้าได้ด้วยรหัสเชิญเท่านั้น ──
+async function unregistered(env: Env, uid: string, msg: string): Promise<LineMessage[]> {
+  const m = /^(?:ลงทะเบียน|สมัคร|register)?\s*([A-Z0-9]{6})$/i.exec(msg)
+  if (m) {
+    const code = m[1].toUpperCase()
+    const inv = await readInvite(env, code)
+    if (!inv) return [text('รหัสเชิญไม่ถูกต้องหรือหมดอายุ (ใช้ได้ 3 วัน ครั้งเดียว) — ขอรหัสใหม่จากคนที่ชวนคุณมานะครับ')]
+    const token = await registerToken(env, uid, code)
+    return [text(`🎟 รหัสเชิญถูกต้อง!\nแตะลิงก์นี้เพื่อลงทะเบียน (ใช้ได้ 30 นาที):\n${workerOrigin}/register?t=${encodeURIComponent(token)}\n\nเตรียม Athlete ID + API key จาก intervals.icu (Settings → Developer Settings) ไว้ด้วยนะครับ`)]
+  }
+  return [text('สวัสดีครับ 👋 คู่ซ้อมตอนนี้เปิดให้เฉพาะคนที่ได้รับเชิญ (เบต้า)\nถ้ามีรหัสเชิญ พิมพ์: ลงทะเบียน <รหัส 6 ตัว>')]
+}
+
+/** ผูก rich menu ตามกีฬา (แบดมินตันใช้เมนูของตัวเอง) */
+async function linkRichMenu(env: Env, uid: string, sport: Sport) {
+  const h = { Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` }
+  if (sport === 'run') {
+    await fetch(`https://api.line.me/v2/bot/user/${uid}/richmenu`, { method: 'DELETE', headers: h }) // กลับไปใช้เมนูหลัก
+    return
+  }
+  const list = (await (await fetch('https://api.line.me/v2/bot/richmenu/list', { headers: h })).json()) as { richmenus?: { richMenuId: string; name: string }[] }
+  const m = list.richmenus?.find((x) => x.name === 'koosom-badminton')
+  if (m) await fetch(`https://api.line.me/v2/bot/user/${uid}/richmenu/${m.richMenuId}`, { method: 'POST', headers: h })
+}
+
+async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Promise<LineMessage[]> {
   const userId = ev.source?.userId ?? ''
   const msg = (ev.message?.type === 'text' ? ev.message.text ?? '' : '').trim()
 
   if (/^(id|ไอดี)$/i.test(msg)) return [text(`LINE user ID ของคุณ:\n${userId}`)]
-  if (env.LINE_USER_ID && userId !== env.LINE_USER_ID) return [] // ตอบเฉพาะเจ้าของ
 
-  const client = new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)
+  const user = await getUser(env, userId)
+  if (!user) return unregistered(env, userId, msg)
+  if (override?.sport) user.sport = override.sport // ใช้เฉพาะ self-test
+
+  const client = clientOf(user)
   const cfg = await client.loadConfig()
   if (!cfg) return [text('ยังไม่ได้ตั้งค่าโค้ช — เปิดแอปคู่ซ้อม แท็บซ้อม → โค้ช & Garmin แล้วกดบันทึก', MENU)]
   const today = todayBkk()
+
+  // ── ผู้ใช้/บัญชี ──
+  if (user.isOwner) {
+    const inv = /^เชิญ\s*(แบด|วิ่ง)?$/.exec(msg)
+    if (inv) {
+      const sport: Sport = inv[1] === 'วิ่ง' ? 'run' : inv[1] === 'แบด' ? 'badminton' : 'run'
+      const code = await createInvite(env, userId, sport)
+      return [text(`🎟 รหัสเชิญ: ${code}\nใช้ได้ 1 คน ภายใน 3 วัน (${sport === 'badminton' ? 'แบดมินตัน' : 'วิ่ง'})\n\nส่งข้อความนี้ให้คนที่เชิญ 👇`), text(`มาลองใช้ "คู่ซ้อม" โค้ชส่วนตัวใน LINE กัน 🏃🏸\n1) เพิ่มเพื่อน: https://line.me/R/ti/p/@754yhzoj\n2) พิมพ์ในแชท: ลงทะเบียน ${code}`)]
+    }
+    if (/^(ผู้ใช้|สมาชิก|users)$/i.test(msg)) {
+      const ms = await listMembers(env)
+      return [text(ms.length ? `👥 ผู้ใช้ ${ms.length} คน\n${ms.map((m) => `• ${m.name} · ${m.sport === 'badminton' ? '🏸' : '🏃'}${m.push ? ' · 🔔' : ''} · ตั้งแต่ ${m.createdAt.slice(0, 10)}`).join('\n')}\n\n🔔 = รับข้อความอัตโนมัติ (ใช้โควตา LINE)` : 'ยังไม่มีผู้ใช้อื่น — พิมพ์ "เชิญ" หรือ "เชิญ แบด" เพื่อสร้างรหัสเชิญ', MENU)]
+    }
+    const del = /^ลบผู้ใช้\s+(.+)$/.exec(msg)
+    if (del) {
+      const m = (await listMembers(env)).find((x) => x.name === del[1].trim())
+      if (!m) return [text(`ไม่พบผู้ใช้ชื่อ "${del[1].trim()}" — พิมพ์ "ผู้ใช้" เพื่อดูรายชื่อ`)]
+      await deleteUser(env, m.uid)
+      return [text(`🗑 ลบ ${m.name} ออกจากคู่ซ้อมแล้ว (ข้อมูลใน Intervals ของเขายังอยู่)`)]
+    }
+  } else if (/^(ลบบัญชี|ยกเลิกบัญชี|delete account)$/i.test(msg)) {
+    return [text('ยืนยันลบบัญชีคู่ซ้อม? ระบบจะลบคีย์และการเชื่อมต่อทั้งหมด (ข้อมูลใน Intervals ของคุณไม่ถูกลบ)', [{ label: '🗑 ยืนยันลบ', text: 'ยืนยันลบบัญชี' }, { label: 'ยกเลิก', text: 'เมนู' }])]
+  } else if (msg === 'ยืนยันลบบัญชี') {
+    await deleteUser(env, userId)
+    return [text('ลบบัญชีเรียบร้อยแล้ว ขอบคุณที่ลองใช้คู่ซ้อมครับ 🙏')]
+  }
+  const sp = /^(?:กีฬา|โหมด)\s*(แบด|แบดมินตัน|วิ่ง)$/.exec(msg)
+  if (sp) {
+    const sport: Sport = sp[1].startsWith('แบด') ? 'badminton' : 'run'
+    await updateUser(env, userId, { sport })
+    await linkRichMenu(env, userId, sport).catch(() => undefined)
+    return [text(`เปลี่ยนเป็นโหมด${sport === 'badminton' ? 'แบดมินตัน 🏸' : 'วิ่ง 🏃'}แล้ว`, sport === 'badminton' ? BADMINTON_MENU : MENU)]
+  }
+  const pushM = /^(?:แจ้งเตือน|ข้อความอัตโนมัติ)\s*(เปิด|ปิด)?$/.exec(msg)
+  if (pushM) {
+    if (!pushM[1]) return [text(`🔔 ข้อความอัตโนมัติ (ตอนตื่น/สรุปค่ำ): ${user.push ? 'เปิด' : 'ปิด'}`, [{ label: '🔔 เปิด', text: 'แจ้งเตือน เปิด' }, { label: '🔕 ปิด', text: 'แจ้งเตือน ปิด' }])]
+    await updateUser(env, userId, { push: pushM[1] === 'เปิด' })
+    return [text(pushM[1] === 'เปิด' ? '🔔 เปิดแล้ว — จะส่งข้อความหลังคุณตื่นวันละครั้ง' : '🔕 ปิดแล้ว — ยังกดดูทุกอย่างจากเมนูได้ตามปกติ')]
+  }
+
+  // ── โหมดแบดมินตัน ──
+  if (user.sport === 'badminton') {
+    const b = await handleBadminton({ ev, msg, user, client, cfg, today })
+    if (b) return b
+  }
 
   // ปุ่มเลือกเวลาตื่น
   if (ev.type === 'postback' && ev.postback?.data === 'sleep|wake') {
     const t = ev.postback.params?.time
     if (!t) return [text('ไม่ได้เลือกเวลา', sleepQuick())]
-    const store = await loadSleepStore(client)
-    return [text(bedtimeText(t, sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)), sleepQuick())]
+    const sn = await sleepNights(env, user, client)
+    return [text(bedtimeText(t, sleepStats(sn.nights, today, cfg.sleepTargetMin)), sleepQuick())]
   }
 
   // ปุ่ม 💼 ติดงาน
@@ -260,7 +383,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const arg = ev.postback.data.split('|')[1]
     const to = arg === 'pick' ? ev.postback.params?.date : arg === 'sun' ? addDays(today, (7 - dowOf(today)) % 7) : addDays(today, Number(arg) || 0)
     if (!to) return [text('ไม่ได้เลือกวันที่', busyMenu(today))]
-    return doBusy(env, to, today)
+    return doBusy(user, to, today)
   }
 
   // ปุ่มตอบคำถาม
@@ -275,13 +398,14 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
 
   if (/^(เชื่อม ?google|เชื่อมต่อ ?google|google|เชื่อม ?google ?health|connect google)$/i.test(msg)) {
     if (!googleCreds(env) || !env.KV) return [text('ฝั่งระบบยังไม่ได้ใส่ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — ทำตามขั้นตอนตั้งค่า Google Cloud ก่อนครับ')]
-    const url = `${workerOrigin}/google/login?state=${await makeState(env)}`
+    const url = `${workerOrigin}/google/login?state=${await makeState(env, userId)}`
     return [text(`🔗 เชื่อม Google Health (ดึงการนอน)\nแตะลิงก์นี้ภายใน 20 นาที → เลือกบัญชี Google ที่ใช้กับแอป Google Health → อนุญาต\n(ถ้าขึ้น "Google hasn't verified this app" กด Advanced → Go to … แล้วไปต่อ เพราะเป็นแอปส่วนตัวของคุณเอง)\n\n${url}`)]
   }
   if (/^(การนอน|นอน|sleep|ซิงก์การนอน|โค้ชการนอน|การ์ดการนอน)$/i.test(msg)) {
-    const r = await runSleepSync(env)
-    if (!r.ok) return [text(`😴 ${r.text}${/เชื่อม/.test(r.text) ? '\nพิมพ์ "เชื่อม google" เพื่อเริ่ม' : ''}`, MENU)]
-    const st = sleepStats(r.store?.nights ?? [], today, cfg.sleepTargetMin)
+    const sn = await sleepNights(env, user, client, true)
+    if (sn.error) return [text(`😴 ${sn.error}`, MENU)]
+    if (!sn.nights.length) return [text('😴 ยังไม่มีข้อมูลการนอน\n• ใช้ Fitbit/Pixel Watch: พิมพ์ "เชื่อม google"\n• ใช้ Apple Watch: ให้ HealthFit ส่งข้อมูลการนอนเข้า Intervals.icu', MENU)]
+    const st = sleepStats(sn.nights, today, cfg.sleepTargetMin)
     const advice = sleepAdvice(st, await todayKind(client, today))
     return [flex(`😴 นอนล่าสุด ${st.last ? dur(st.last.asleepMin) : '-'} · หนี้ ${dur(st.debtMin)}`, sleepFlex(st, advice), sleepQuick())]
   }
@@ -293,19 +417,19 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const h = Number(wakeM[1])
     if (h > 23) return [text('ใส่เวลาแบบ 24 ชม. เช่น "ตื่น 14:00"', sleepQuick())]
     const wake = `${String(h).padStart(2, '0')}:${wakeM[2] ?? '00'}`
-    const store = await loadSleepStore(client)
-    return [text(bedtimeText(wake, sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)), sleepQuick())]
+    const sn = await sleepNights(env, user, client)
+    return [text(bedtimeText(wake, sleepStats(sn.nights, today, cfg.sleepTargetMin)), sleepQuick())]
   }
   if (/^(นอนตอนนี้|จะนอนแล้ว|ไปนอน|จะนอน|นอนเลย)$/.test(msg)) {
-    const store = await loadSleepStore(client)
-    const st = sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)
+    const sn = await sleepNights(env, user, client)
+    const st = sleepStats(sn.nights, today, cfg.sleepTargetMin)
     const opts = wakeTimesFrom(nowMs(), st)
     const best = st.debtMin >= 180 ? 6 : 5
     return [text([`⏰ ถ้านอนตอนนี้ (${hhmmNow()}) ตั้งปลุก:`, ...opts.map((o) => `${o.cycles === best ? '⭐' : '•'} ${o.wake}  (${o.cycles} รอบ = ${dur(o.sleepMin)})`), '', `เผื่อเวลากว่าจะหลับ ~${st.latencyMin} นาทีแล้ว`, 'ปิดไฟ ห้องเย็น วางมือถือห่างตัว 🌙 ฝันดีครับ'].join('\n'), sleepQuick())]
   }
   if (/^(งีบ|nap|จะงีบ)$/i.test(msg)) {
-    const store = await loadSleepStore(client)
-    const st = sleepStats(store?.nights ?? [], today, cfg.sleepTargetMin)
+    const sn = await sleepNights(env, user, client)
+    const st = sleepStats(sn.nights, today, cfg.sleepTargetMin)
     const n = napPlan(nowMs(), st)
     return [text([`😪 งีบตอนนี้ (${hhmmNow()}) ตั้งปลุก:`, `${n.preferFull ? '•' : '⭐'} ${n.power} — งีบสั้น 20 นาที ตื่นมาไม่งัวเงีย`, `${n.preferFull ? '⭐' : '•'} ${n.full} — งีบเต็มรอบ 90 นาที${n.preferFull ? ' (แนะนำ เพราะหนี้การนอนสูง/เมื่อคืนนอนน้อย)' : ''}`, '', 'เลี่ยงงีบ 30–60 นาที (ตื่นกลางหลับลึก จะมึน)', 'ถ้าจะซ้อมหนักหลังงีบ เผื่อเวลาตื่นตัว 20–30 นาที'].join('\n'), sleepQuick())]
   }
@@ -329,7 +453,7 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   if (busyN) {
     const to = busyN[1] ? addDays(today, Math.max(1, Number(busyN[1])) - 1) : busyN[2] ? (/อาทิตย์/.test(busyN[2]) ? addDays(today, (7 - dowOf(today)) % 7) : parseDM(busyN[2], today)) : /อาทิตย์/.test(msg) ? addDays(today, (7 - dowOf(today)) % 7) : today
     if (!to) return [text('พิมพ์วันที่แบบ "ติดงาน ถึง 30/11" หรือกดเลือกจากปุ่มได้เลย', busyMenu(today))]
-    return doBusy(env, to, today)
+    return doBusy(user, to, today)
   }
   if (/^(วิ่งสั้น|ยุ่ง|วิ่งสั้นวันนี้|วิ่งสั้น พรุ่งนี้|วิ่งสั้นพรุ่งนี้)$/.test(msg)) {
     const day = /พรุ่งนี้/.test(msg) ? addDays(today, 1) : today
@@ -439,8 +563,8 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
     const [acts, wellness, store] = await Promise.all([client.activities(addDays(today, -70), today), client.wellness(addDays(today, -21), today), loadShoes(client)])
     const shoeActs = store.shoes.length ? await client.activities(shoesOldest(store, today), today) : []
     const w = weeklyData(data.events, acts, wellness, cfg, today)
-    const ss = await loadSleepStore(client).catch(() => null)
-    return [flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs), ss ? sleepStats(ss.nights, today, cfg.sleepTargetMin) : undefined), MENU)]
+    const sn = await sleepNights(env, user, client).catch(() => null)
+    return [flex(`📊 สัปดาห์นี้ ${w.actualKm}/${w.plannedKm} กม.`, weeklyFlex(w, cfg.goalSec, shoeWarnings(store, shoeActs), sn?.nights.length ? sleepStats(sn.nights, today, cfg.sleepTargetMin) : undefined), MENU)]
   }
 
   if (/^(สัปดาห์|week|7 ?วัน|7 วันข้างหน้า)$/i.test(msg)) {
@@ -468,14 +592,14 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
 
   if (/^(ซิงก์|ซิงค์|sync|ปรับตาราง|🔄 ?ซิงก์|อัปเดต|อัพเดท)$/i.test(msg)) {
     // 1) การนอนจาก Google Health  2) ผลวิ่ง/HRV ล่าสุดที่ Garmin ส่งเข้า Intervals  3) โค้ชปรับตาราง  4) สรุป
-    const sleep = env.KV && (await env.KV.get(KV_REFRESH)) ? await runSleepSync(env, 2) : null
-    const lastIso = (await env.KV?.get(KV_LAST_SYNC)) ?? ''
+    const sleep = env.KV && (await env.KV.get(ukey(user, KV_REFRESH))) ? await runSleepSync(env, user, 2) : null
+    const lastIso = (await env.KV?.get(ukey(user, KV_LAST_SYNC))) ?? ''
     const data = await loadAndAnalyze(client, cfg, today)
     const r = await commitReport(client, cfg, data, today)
     const fresh = await loadAndAnalyze(client, cfg, today)
     const acts = (await client.activities(addDays(today, -3), today)).filter((a) => (a.distance ?? 0) > 0)
     const newActs = lastIso ? acts.filter((a) => a.start_date_local > lastIso) : acts.slice(-3)
-    await env.KV?.put(KV_LAST_SYNC, nowBkkIso())
+    await env.KV?.put(ukey(user, KV_LAST_SYNC), nowBkkIso())
     const L: string[] = ['🔄 ซิงก์แล้ว', '']
     L.push(
       newActs.length
@@ -507,16 +631,16 @@ async function handle(ev: LineEvent, env: Env): Promise<LineMessage[]> {
   if (msg.length < 2) return [text(GREETING(cfg.planName), MENU)]
   const data = await loadAndAnalyze(client, cfg, today)
   const acts = await client.activities(addDays(today, -21), today)
-  const sleepStore = await loadSleepStore(client).catch(() => null)
-  const sst = sleepStore ? sleepStats(sleepStore.nights, today, cfg.sleepTargetMin) : null
+  const sn = await sleepNights(env, user, client).catch(() => null)
+  const sst = sn?.nights.length ? sleepStats(sn.nights, today, cfg.sleepTargetMin) : null
   const sleepCtx = sst
     ? [
-        `การนอน (Google Health, เป้า ${dur(sst.targetMin)}/วัน, เจ้าของเปิดร้านอาหาร 24 ชม. เวลานอนไม่ตายตัว):`,
-        ...sst.nights7.map((n) => `- ตื่น ${n.date}: ${n.start}–${n.end} หลับ ${dur(n.asleepMin)}${n.napMin ? ` + งีบ ${n.napMin} น.` : ''}`),
+        `การนอน (${sn!.source === 'google' ? 'Google Health' : 'นาฬิกา ผ่าน Intervals'}, เป้า ${dur(sst.targetMin)}/วัน${user.isOwner ? ', เจ้าของเปิดร้านอาหาร 24 ชม. เวลานอนไม่ตายตัว' : ''}):`,
+        ...sst.nights7.map((n) => `- ตื่น ${n.date}: ${n.start ? `${n.start}–${n.end} ` : ''}หลับ ${dur(n.asleepMin)}${n.napMin ? ` + งีบ ${n.napMin} น.` : ''}`),
         `หนี้การนอน 7 วัน ${dur(sst.debtMin)} · ความสม่ำเสมอ ${sst.regularity ?? '-'} · หลับจริงเฉลี่ย ${sst.effPct ?? '-'}% · กว่าจะหลับ ~${sst.latencyMin} นาที`,
       ]
     : []
-  const ctx = buildContext(data, cfg, acts, today, sleepCtx)
+  const ctx = buildContext(data, cfg, acts, today, [...sleepCtx, ...(user.sport === 'badminton' ? ['กีฬาหลัก: แบดมินตัน (ไม่ใช่วิ่ง) — ตอบในบริบทแบดมินตัน'] : [])])
   const hist = await loadHist(userId)
   try {
     const answer = await askCoach(env, msg.slice(0, 600), ctx, hist)
@@ -538,18 +662,37 @@ export default {
       if (!(await checkState(env, state))) return page('ลิงก์หมดอายุ', 'พิมพ์ "เชื่อม google" ใน LINE เพื่อขอลิงก์ใหม่')
       return Response.redirect(authUrl(creds, `${url.origin}${REDIRECT_PATH}`, state!), 302)
     }
+    if (url.pathname === '/register') {
+      if (req.method === 'POST') {
+        return handleRegister(req, env, async (uid, name, sport) => {
+          await linkRichMenu(env, uid, sport).catch(() => undefined)
+          const first =
+            sport === 'badminton'
+              ? `🏸 ยินดีต้อนรับ ${name}!\nเริ่มจากพิมพ์ "ตั้งค่าแบด" เพื่อบอกวันที่ลงคอร์ดและระดับการเล่น แล้วโค้ชจะจัดตารางฝึกให้\n\nใช้ Apple Watch: ติดตั้งแอป HealthFit แล้วเชื่อม Intervals.icu เพื่อส่งการเล่นและการนอนเข้ามา`
+              : `🏃 ยินดีต้อนรับ ${name}!\nพิมพ์ "เมนู" เพื่อดูสิ่งที่ทำได้ · สร้างแผนวิ่งได้ที่แอปคู่ซ้อม https://summertime-2807.github.io/koosom/`
+          await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, uid, [text(first, sport === 'badminton' ? BADMINTON_MENU : MENU)])
+        })
+      }
+      const tk = await readRegisterToken(env, url.searchParams.get('t'))
+      if (!tk) return errorPage('ลิงก์หมดอายุ', 'ลิงก์ลงทะเบียนใช้ได้ 30 นาที')
+      const inv = await readInvite(env, tk.code)
+      if (!inv) return errorPage('รหัสเชิญหมดอายุ', 'ขอรหัสเชิญใหม่จากเจ้าของ')
+      return registerForm(url.searchParams.get('t')!, inv.sport)
+    }
     if (req.method === 'GET' && url.pathname === REDIRECT_PATH) {
       const creds = googleCreds(env)
       if (!creds || !env.KV) return page('ยังไม่ได้ตั้งค่า', 'ระบบยังไม่พร้อม')
-      if (!(await checkState(env, url.searchParams.get('state')))) return page('ลิงก์หมดอายุ', 'พิมพ์ "เชื่อม google" ใน LINE เพื่อขอลิงก์ใหม่')
+      const gUid = await checkState(env, url.searchParams.get('state'))
+      const gUser = gUid ? await getUser(env, gUid) : null
+      if (!gUser) return page('ลิงก์หมดอายุ', 'พิมพ์ "เชื่อม google" ใน LINE เพื่อขอลิงก์ใหม่')
       if (url.searchParams.get('error')) return page('ยกเลิกแล้ว', `Google ตอบกลับ: ${url.searchParams.get('error')}`)
       try {
         const tok = await exchangeCode(creds, url.searchParams.get('code') ?? '', `${url.origin}${REDIRECT_PATH}`)
         await checkIdentity(tok.access_token!)
-        if (tok.refresh_token) await env.KV.put(KV_REFRESH, tok.refresh_token)
-        else if (!(await env.KV.get(KV_REFRESH))) throw new Error('Google ไม่ส่ง refresh token — ลองเชื่อมใหม่อีกครั้ง')
-        const r = await runSleepSync(env, 7)
-        if (env.LINE_USER_ID) await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, env.LINE_USER_ID, [text(`✅ เชื่อม Google Health แล้ว\nต่อไปจะดึงการนอนให้อัตโนมัติทุกเช้า (06:00 และ 07:45) และพิมพ์ "การนอน" ดูได้ตลอด\n\n${r.text}`, MENU)]).catch(() => undefined)
+        if (tok.refresh_token) await env.KV.put(ukey(gUser, KV_REFRESH), tok.refresh_token)
+        else if (!(await env.KV.get(ukey(gUser, KV_REFRESH)))) throw new Error('Google ไม่ส่ง refresh token — ลองเชื่อมใหม่อีกครั้ง')
+        const r = await runSleepSync(env, gUser, 7)
+        await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, gUser.uid, [text(`✅ เชื่อม Google Health แล้ว\nระบบดึงการนอนให้ทุก 2 ชม. และพิมพ์ "การนอน" ดูได้ตลอด\n\n${r.text}`, MENU)]).catch(() => undefined)
         return page('✅ เชื่อม Google Health สำเร็จ', 'ดึงการนอน 7 วันล่าสุดเข้าโค้ชแล้ว')
       } catch (e) {
         return page('เชื่อมไม่สำเร็จ', (e as Error).message.replace(/</g, '&lt;'))
@@ -559,22 +702,31 @@ export default {
     if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
     const body = await req.text()
     if (!(await verify(body, req.headers.get('x-line-signature'), env.LINE_CHANNEL_SECRET))) return new Response('bad signature', { status: 401 })
-    const payload = JSON.parse(body) as { events?: LineEvent[]; selftest?: string }
+    const payload = JSON.parse(body) as { events?: LineEvent[]; selftest?: string; relink?: boolean; uid?: string; sport?: Sport }
+    // หลังสร้าง rich menu ใหม่: ผูกเมนูแบดให้ผู้ใช้โหมดแบดอีกครั้ง
+    if (payload.relink) {
+      const ids = (await listMembers(env)).filter((m) => m.sport === 'badminton').map((m) => m.uid)
+      const owner = env.LINE_USER_ID ? await getUser(env, env.LINE_USER_ID) : null
+      if (owner?.sport === 'badminton') ids.push(owner.uid)
+      for (const id of ids) await linkRichMenu(env, id, 'badminton').catch(() => undefined)
+      return Response.json({ relinked: ids.length })
+    }
     // ทดสอบตัวเอง (ต้องเซ็นด้วย channel secret): รันคำสั่ง แล้วให้ LINE ตรวจรูปแบบข้อความโดยไม่ส่งจริง
     // คืนเฉพาะสถานะ ไม่คืนเนื้อหา (log ของ GitHub Actions เป็นสาธารณะ)
     if (payload.selftest === '__google') {
-      const st = await env.KV?.get(KV_STATUS)
-      const refresh = await env.KV?.get(KV_REFRESH)
+      const owner = (await getUser(env, env.LINE_USER_ID ?? ''))!
+      const st = await env.KV?.get(ukey(owner, KV_STATUS))
+      const refresh = await env.KV?.get(ukey(owner, KV_REFRESH))
       const creds = googleCreds(env)
-      const ss = refresh ? await loadSleepStore(new IntervalsClient(env.INTERVALS_ATHLETE_ID, env.INTERVALS_API_KEY)).catch(() => null) : null
+      const ss = refresh ? await loadSleepStore(clientOf(owner)).catch(() => null) : null
       const ln = ss?.nights.at(-1)
-      const wake = ln ? { nights: ss!.nights.length, lastIsToday: ln.date === todayBkk(), minsSinceEnd: ln.endMs ? Math.round((Date.now() - ln.endMs) / 60000) : null, notifiedToday: (await env.KV?.get(KV_WAKE)) === todayBkk() } : null
-      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, wake })
+      const wake = ln ? { nights: ss!.nights.length, lastIsToday: ln.date === todayBkk(), minsSinceEnd: ln.endMs ? Math.round((Date.now() - ln.endMs) / 60000) : null, notifiedToday: (await env.KV?.get(ukey(owner, KV_WAKE))) === todayBkk() } : null
+      return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, wake, members: (await listMembers(env)).length })
     }
     if (payload.selftest) {
       const t0 = Date.now()
       try {
-        const msgs = await handle({ type: 'message', replyToken: 'selftest', source: { userId: env.LINE_USER_ID }, message: { type: 'text', text: payload.selftest } }, env)
+        const msgs = await handle({ type: 'message', replyToken: 'selftest', source: { userId: payload.uid ?? env.LINE_USER_ID }, message: { type: 'text', text: payload.selftest } }, env, { sport: payload.sport })
         const v = await fetch('https://api.line.me/v2/bot/message/validate/reply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` },
@@ -606,6 +758,16 @@ export default {
 
   /** cron (เวลา UTC ใน wrangler.toml): ดึงการนอนจาก Google Health ก่อนงานโค้ชตอนเช้า/คืน */
   async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(wakeCheck(env).catch(() => undefined))
+    ctx.waitUntil(
+      (async () => {
+        const owner = env.LINE_USER_ID ? await getUser(env, env.LINE_USER_ID) : null
+        if (owner) await wakeCheck(env, owner).catch(() => undefined)
+        // ผู้ใช้อื่นที่เปิดรับข้อความอัตโนมัติ (จำกัด 10 คนต่อรอบ)
+        for (const m of (await listMembers(env)).filter((x) => x.push).slice(0, 10)) {
+          const u = await getUser(env, m.uid).catch(() => null)
+          if (u) await wakeCheck(env, u).catch(() => undefined)
+        }
+      })(),
+    )
   },
 }

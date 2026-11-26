@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - app/assets/richmenu.png
+      - app/assets/richmenu-badminton.png
       - app/scripts/richmenu.ts
       - .github/workflows/richmenu.yml
   workflow_dispatch:
@@ -30,3 +31,8 @@ jobs:
         env:
           LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
         run: npx tsx scripts/richmenu.ts
+      - name: ผูกเมนูแบดให้ผู้ใช้โหมดแบด
+        working-directory: app
+        env:
+          LINE_CHANNEL_SECRET: ${{ secrets.LINE_CHANNEL_SECRET }}
+        run: npx tsx scripts/relink.ts
