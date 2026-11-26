@@ -422,8 +422,6 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     await answerQuestion(client, data.notes, noteDate, qid, yn === 'y')
     return [text(yn === 'y' ? '✅ ปรับตารางตามที่เสนอแล้ว — ซิงก์นาฬิกาเพื่ออัปเดต workout' : '👌 คงตารางเดิม', MENU)]
   }
-  if (ev.type !== 'message' || ev.message?.type !== 'text') return [text('ตอนนี้โค้ชอ่านได้เฉพาะข้อความตัวอักษรครับ 🙏', MENU)]
-
   // 🏁 เพิ่มงานวิ่ง + จัดโปรแกรม (สร้างแผนจาก LINE แล้วเว็บดึงไปด้วย)
   {
     const key = ukey(user, 'runsetup')
@@ -443,6 +441,8 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     })
     if (r) return r
   }
+
+  if (ev.type !== 'message' || ev.message?.type !== 'text') return [text('ตอนนี้โค้ชอ่านได้เฉพาะข้อความตัวอักษรครับ 🙏', MENU)]
 
   if (/^(เชื่อม ?google|เชื่อมต่อ ?google|google|เชื่อม ?google ?health|connect google)$/i.test(msg)) {
     if (!googleCreds(env) || !env.KV) return [text('ฝั่งระบบยังไม่ได้ใส่ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — ทำตามขั้นตอนตั้งค่า Google Cloud ก่อนครับ')]
