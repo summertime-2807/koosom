@@ -40,6 +40,7 @@ import type { User, Sport } from '../src/coach/users'
 import { createInvite, deleteUser, getUser, listMembers, readInvite, registerToken, readRegisterToken, ukey, updateUser } from '../src/coach/users'
 import { handleRegister, registerForm, errorPage } from './register'
 import { handleBadminton, BADMINTON_MENU } from '../src/coach/badmintonBot'
+import { HOOK_PATH, HOOK_STALE_MIN, KV_HOOK_START, hookDecide, hookMessages, hookSetup, hookToken, readHookToken } from '../src/coach/watchHook'
 import { nightsFromWellness } from '../src/coach/sleepCoach'
 
 export interface Env extends AiEnv {
@@ -364,6 +365,12 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     return [text(pushM[1] === 'เปิด' ? '🔔 เปิดแล้ว — จะส่งข้อความหลังคุณตื่นวันละครั้ง' : '🔕 ปิดแล้ว — ยังกดดูทุกอย่างจากเมนูได้ตามปกติ')]
   }
 
+  // ⌚ เชื่อม Apple Watch ผ่านคำสั่งลัด (ฟรี)
+  if (/^(เชื่อม ?apple( ?watch)?|เชื่อม ?แอปเปิ้ล|apple ?watch|เชื่อม ?นาฬิกา|คำสั่งลัด|shortcuts?)$/i.test(msg)) {
+    if (!env.KV) return [text('ระบบยังไม่พร้อม (ไม่มี KV)')]
+    return hookSetup(workerOrigin, await hookToken(env.LINE_CHANNEL_SECRET, userId))
+  }
+
   // ── โหมดแบดมินตัน ──
   if (user.sport === 'badminton') {
     const b = await handleBadminton({ ev, msg, user, client, cfg, today })
@@ -404,7 +411,7 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
   if (/^(การนอน|นอน|sleep|ซิงก์การนอน|โค้ชการนอน|การ์ดการนอน)$/i.test(msg)) {
     const sn = await sleepNights(env, user, client, true)
     if (sn.error) return [text(`😴 ${sn.error}`, MENU)]
-    if (!sn.nights.length) return [text('😴 ยังไม่มีข้อมูลการนอน\n• ใช้ Fitbit/Pixel Watch: พิมพ์ "เชื่อม google"\n• ใช้ Apple Watch: ให้ HealthFit ส่งข้อมูลการนอนเข้า Intervals.icu', MENU)]
+    if (!sn.nights.length) return [text('😴 ยังไม่มีข้อมูลการนอน\n• ใช้ Fitbit/Pixel Watch: พิมพ์ "เชื่อม google"\n• ใช้ Apple Watch: ต้องมีแอป HealthFit (เสียเงินครั้งเดียว) ส่งการนอนเข้า Intervals.icu', MENU)]
     const st = sleepStats(sn.nights, today, cfg.sleepTargetMin)
     const advice = sleepAdvice(st, await todayKind(client, today))
     return [flex(`😴 นอนล่าสุด ${st.last ? dur(st.last.asleepMin) : '-'} · หนี้ ${dur(st.debtMin)}`, sleepFlex(st, advice), sleepQuick())]
@@ -668,7 +675,7 @@ export default {
           await linkRichMenu(env, uid, sport).catch(() => undefined)
           const first =
             sport === 'badminton'
-              ? `🏸 ยินดีต้อนรับ ${name}!\nเริ่มจากพิมพ์ "ตั้งค่าแบด" เพื่อบอกวันที่ลงคอร์ดและระดับการเล่น แล้วโค้ชจะจัดตารางฝึกให้\n\nใช้ Apple Watch: ติดตั้งแอป HealthFit แล้วเชื่อม Intervals.icu เพื่อส่งการเล่นและการนอนเข้ามา`
+              ? `🏸 ยินดีต้อนรับ ${name}!\nเริ่มจากพิมพ์ "ตั้งค่าแบด" เพื่อบอกวันที่ลงคอร์ดและระดับการเล่น แล้วโค้ชจะจัดตารางฝึกให้\n\nใช้ Apple Watch: พิมพ์ "เชื่อม apple" ให้คู่ซ้อมรู้เองทุกครั้งที่เล่นจบ (ฟรี)`
               : `🏃 ยินดีต้อนรับ ${name}!\nพิมพ์ "เมนู" เพื่อดูสิ่งที่ทำได้ · สร้างแผนวิ่งได้ที่แอปคู่ซ้อม https://summertime-2807.github.io/koosom/`
           await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, uid, [text(first, sport === 'badminton' ? BADMINTON_MENU : MENU)])
         })
@@ -698,6 +705,24 @@ export default {
         return page('เชื่อมไม่สำเร็จ', (e as Error).message.replace(/</g, '&lt;'))
       }
     }
+    // ⌚ คำสั่งลัด Apple Watch: /w/<token>?e=start|end
+    if (url.pathname.startsWith(HOOK_PATH)) {
+      const hUid = await readHookToken(env.LINE_CHANNEL_SECRET, url.pathname.slice(HOOK_PATH.length))
+      const hUser = hUid ? await getUser(env, hUid) : null
+      if (!hUser || !env.KV) return new Response('not found', { status: 404 })
+      if (req.method !== 'POST') return page('⌚ ลิงก์คำสั่งลัด', 'ลิงก์นี้ใช้ในแอปคำสั่งลัด (วิธี POST) — ไม่ต้องเปิดในเบราว์เซอร์')
+      const key = ukey(hUser, KV_HOOK_START)
+      const e = url.searchParams.get('e')
+      const r = hookDecide(e, e === 'end' ? await env.KV.get(key) : null, Date.now())
+      if (r.kind === 'bad') return new Response('bad event', { status: 400 })
+      if (r.kind === 'started') {
+        await env.KV.put(key, new Date().toISOString(), { expirationTtl: 12 * 3600 })
+        return new Response('ok')
+      }
+      await env.KV.delete(key)
+      if (hUser.sport === 'badminton') ctx.waitUntil(linePush(env.LINE_CHANNEL_ACCESS_TOKEN, hUser.uid, hookMessages(r)).catch(() => undefined))
+      return new Response('ok')
+    }
     if (req.method === 'GET') return new Response('คู่ซ้อม LINE bot OK')
     if (req.method !== 'POST') return new Response('method not allowed', { status: 405 })
     const body = await req.text()
@@ -722,6 +747,17 @@ export default {
       const ln = ss?.nights.at(-1)
       const wake = ln ? { nights: ss!.nights.length, lastIsToday: ln.date === todayBkk(), minsSinceEnd: ln.endMs ? Math.round((Date.now() - ln.endMs) / 60000) : null, notifiedToday: (await env.KV?.get(ukey(owner, KV_WAKE))) === todayBkk() } : null
       return Response.json({ cmd: '__google', kv: !!env.KV, creds: !!creds, connected: !!refresh, last: st ? JSON.parse(st) : null, wake, members: (await listMembers(env)).length })
+    }
+    if (payload.selftest === '__hook') {
+      const sets = [hookMessages({ kind: 'ended', minutes: 95 }), hookMessages({ kind: 'ended', minutes: null }), hookMessages({ kind: 'test', minutes: 3 })]
+      const res = []
+      for (const msgs of sets) {
+        const v = await fetch('https://api.line.me/v2/bot/message/validate/push', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` }, body: JSON.stringify({ messages: msgs }) })
+        res.push({ valid: v.status, error: v.ok ? undefined : (await v.text()).slice(0, 200) })
+      }
+      const tok = await hookToken(env.LINE_CHANNEL_SECRET, 'Uselftest')
+      const tokenOk = (await readHookToken(env.LINE_CHANNEL_SECRET, tok)) === 'Uselftest' && (await readHookToken(env.LINE_CHANNEL_SECRET, 'AAAA.0000')) === null
+      return Response.json({ cmd: '__hook', res, tokenOk })
     }
     if (payload.selftest) {
       const t0 = Date.now()
@@ -762,6 +798,15 @@ export default {
       (async () => {
         const owner = env.LINE_USER_ID ? await getUser(env, env.LINE_USER_ID) : null
         if (owner) await wakeCheck(env, owner).catch(() => undefined)
+        // ⌚ เริ่มเวิร์กเอาท์แล้วแต่ไม่ได้รับ "จบ" (คำสั่งลัดไม่ทำงาน) → ทักถามเวลาเล่นแทน
+        for (const m of (await listMembers(env)).filter((x) => x.sport === 'badminton').slice(0, 20)) {
+          const u = await getUser(env, m.uid).catch(() => null)
+          const key = u ? ukey(u, KV_HOOK_START) : ''
+          const st = u ? await env.KV?.get(key) : null
+          if (!u || !st || Date.now() - Date.parse(st) < HOOK_STALE_MIN * 60000) continue
+          await env.KV?.delete(key)
+          await linePush(env.LINE_CHANNEL_ACCESS_TOKEN, u.uid, hookMessages({ kind: 'ended', minutes: null })).catch(() => undefined)
+        }
         // ผู้ใช้อื่นที่เปิดรับข้อความอัตโนมัติ (จำกัด 10 คนต่อรอบ)
         for (const m of (await listMembers(env)).filter((x) => x.push).slice(0, 10)) {
           const u = await getUser(env, m.uid).catch(() => null)

@@ -25,7 +25,7 @@ import {
   slotToEvent,
   tournamentTips,
 } from './badminton'
-import type { BLevel, BStore, LoadStatus } from './badminton'
+import type { BLevel, BLog, BStore, LoadStatus } from './badminton'
 
 export const B_STORE_ID = 'raceplan-badminton'
 export const B_STORE_DATE = '2020-01-04'
@@ -218,6 +218,18 @@ export async function handleBadminton(c: BCtx): Promise<LineMessage[] | null> {
     const { ls } = await statusFor(client, s, cfg, today)
     return [text(`👍 บันทึกความเหนื่อย ${n}/10 แล้ว\nภาระตอนนี้: ${ls.acwr != null ? `${ls.acwr}× (${ls.zone})` : ls.zone}${ls.warnings[0] ? `\n⚠️ ${ls.warnings[0]}` : ''}`, BADMINTON_MENU)]
   }
+  // ⌚ หลังจบเวิร์กเอาท์จาก Apple Watch (คำสั่งลัด): เลือกประเภท → ให้คะแนนความเหนื่อย
+  if (pb === 'hk|skip') return [text('โอเค ไม่บันทึกครั้งนี้ครับ', BADMINTON_MENU)]
+  if (pb.startsWith('hk|')) {
+    const [, min, kind, n] = pb.split('|')
+    const k = (['court', 'train', 'match'].includes(kind) ? kind : 'court') as BLog['kind']
+    const label = k === 'match' ? 'แข่ง' : k === 'train' ? 'ฝึกเสริม' : 'แบด'
+    if (!n) return [text(`${label} ${min} นาที — เหนื่อยแค่ไหน? (1 = สบายมาก, 10 = สุดแรง)`, rpePicker(`hk|${min}|${k}`))]
+    s.logs.push({ id: `l${Date.now().toString(36)}`, date: today, minutes: Number(min), rpe: Number(n), kind: k })
+    await saveB(client, s)
+    const { ls } = await statusFor(client, s, cfg, today)
+    return [text(`✅ บันทึก${label} ${min} นาที เหนื่อย ${n}/10\nภาระ: ${ls.acwr != null ? `${ls.acwr}× (${ls.zone})` : 'ข้อมูลยังน้อย (ครบ 3 สัปดาห์จะเริ่มประเมินได้)'}${ls.warnings[0] ? `\n⚠️ ${ls.warnings[0]}` : ''}${k !== 'train' ? '\n\nอย่าลืมคูลดาวน์ + ยืด 5 นาที 🧘' : ''}`, BADMINTON_MENU)]
+  }
   if (pb.startsWith('blog|')) {
     const [, min, n] = pb.split('|')
     if (!n) return [text(`🏸 ${min} นาที — เหนื่อยแค่ไหน? (1 = สบายมาก, 10 = สุดแรง)`, rpePicker(`blog|${min}`))]
@@ -231,7 +243,7 @@ export async function handleBadminton(c: BCtx): Promise<LineMessage[] | null> {
     const unrated = acts.filter((a) => (a.moving_time ?? 0) >= 600 && s.rpeByActivity[a.id] == null).at(-1)
     if (unrated)
       return [text(`⌚ เจอกิจกรรมจากนาฬิกา: ${unrated.name ?? unrated.type} ${Math.round((unrated.moving_time ?? 0) / 60)} นาที (${dayLabel(unrated.start_date_local.slice(0, 10))})\nเหนื่อยแค่ไหนครับ?`, rpePicker(`rpe|${unrated.id}`))]
-    return [text('🏸 เล่นไปกี่นาที? (ถ้าใส่ Apple Watch แล้ว HealthFit ส่งเข้ามา จะให้คะแนนอันนั้นแทน)\nพิมพ์เองก็ได้ เช่น "แบด 90 นาที เหนื่อย 7"', [60, 90, 120, 150, 180].map((m) => ({ label: `${m} นาที`, data: `blog|${m}`, text: `เล่น ${m} นาที` })))]
+    return [text('🏸 เล่นไปกี่นาที?\nพิมพ์เองก็ได้ เช่น "แบด 90 นาที เหนื่อย 7"\n(อยากให้บันทึกเองจาก Apple Watch: พิมพ์ "เชื่อม apple")', [60, 90, 120, 150, 180].map((m) => ({ label: `${m} นาที`, data: `blog|${m}`, text: `เล่น ${m} นาที` })))]
   }
   const lg = parseLog(msg, today)
   if (lg) {
@@ -320,7 +332,7 @@ export async function handleBadminton(c: BCtx): Promise<LineMessage[] | null> {
 
   if (/^(เมนู|menu|help|ช่วย|สวัสดี|hi|hello|หวัดดี)$/i.test(msg))
     return [text(`สวัสดีครับ 🏸 โค้ชคู่ซ้อม (แบดมินตัน)\nแตะเมนูด้านล่าง หรือพิมพ์ถามอะไรก็ได้ เช่น\n• "ไหล่ขวาตึงหลังตบ ควรพักไหม"\n• "ก่อนแข่งควรกินอะไร"\n\nบันทึกเร็ว: "แบด 90 นาที เหนื่อย 7"`, BADMINTON_MENU)]
-  if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', [...BADMINTON_MENU.slice(4), { label: '🔔 แจ้งเตือน', text: 'แจ้งเตือน' }, { label: '🔗 เชื่อม Google', text: 'เชื่อม google' }, { label: '🔄 จัดตารางใหม่', text: 'จัดตาราง' }])]
+  if (/^(เพิ่มเติม|more)$/i.test(msg)) return [text('เลือกได้เลยครับ 👇', [...BADMINTON_MENU.slice(4), { label: '🔔 แจ้งเตือน', text: 'แจ้งเตือน' }, { label: '⌚ เชื่อม Apple Watch', text: 'เชื่อม apple' }, { label: '🔗 เชื่อม Google', text: 'เชื่อม google' }, { label: '🔄 จัดตารางใหม่', text: 'จัดตาราง' }])]
 
   return null // ให้คำสั่งร่วม (การนอน, ถามโค้ช AI, เจ็บ ฯลฯ) จัดการต่อ
 }
