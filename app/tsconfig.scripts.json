@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.app.json",
   "compilerOptions": { "types": ["node"], "noEmit": true },
-  "include": ["scripts/coach.ts", "scripts/richmenu.ts", "scripts/selftest.ts", "scripts/busy-livetest.ts", "scripts/relink.ts", "src/coach", "src/engine/trainingEngine.ts", "src/lib", "src/types"],
+  "include": ["scripts/coach.ts", "scripts/richmenu.ts", "scripts/selftest.ts", "scripts/busy-livetest.ts", "scripts/bulkdelete-livetest.ts", "scripts/relink.ts", "src/coach", "src/engine/trainingEngine.ts", "src/lib", "src/types"],
   "exclude": []
 }

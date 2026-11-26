@@ -41,6 +41,10 @@ import { createInvite, deleteUser, getUser, listMembers, readInvite, registerTok
 import { handleRegister, registerForm, errorPage } from './register'
 import { handleBadminton, BADMINTON_MENU } from '../src/coach/badmintonBot'
 import { GUIDE_RE, guideMessages } from '../src/coach/guide'
+import { handleRunSetup } from '../src/coach/raceSetupBot'
+import type { RunSetup } from '../src/coach/raceSetup'
+import { RACE_CALENDAR, mergeCalendar } from '../src/data/raceCalendar'
+import type { CalendarRace } from '../src/types/race'
 import { HOOK_PATH, HOOK_STALE_MIN, KV_HOOK_START, hookDecide, hookMessages, hookSetup, hookToken, readHookToken } from '../src/coach/watchHook'
 import { nightsFromWellness } from '../src/coach/sleepCoach'
 
@@ -87,6 +91,19 @@ async function checkState(env: Env, state: string | null): Promise<string | null
 }
 
 const clientOf = (u: User) => new IntervalsClient(u.athleteId, u.apiKey)
+
+const WEB_URL = 'https://summertime-2807.github.io/koosom/'
+/** ปฏิทินงานวิ่ง: ชุดในแอป + races.json ที่อัปเดตทุกวัน */
+async function loadRaces(): Promise<CalendarRace[]> {
+  try {
+    const res = await fetch(`${WEB_URL}races.json`, { cf: { cacheTtl: 3600, cacheEverything: true } } as RequestInit)
+    const j = res.ok ? ((await res.json()) as { races?: CalendarRace[] }) : null
+    const remote = (j?.races ?? []).filter((r) => r && typeof r.id === 'string' && typeof r.name === 'string' && Array.isArray(r.distancesKm))
+    return mergeCalendar(RACE_CALENDAR, remote)
+  } catch {
+    return RACE_CALENDAR
+  }
+}
 
 async function runSleepSync(env: Env, user: User, days = 4): Promise<{ ok: boolean; text: string; store?: SleepStore }> {
   const creds = googleCreds(env)
@@ -406,6 +423,26 @@ async function handle(ev: LineEvent, env: Env, override?: { sport?: Sport }): Pr
     return [text(yn === 'y' ? '✅ ปรับตารางตามที่เสนอแล้ว — ซิงก์นาฬิกาเพื่ออัปเดต workout' : '👌 คงตารางเดิม', MENU)]
   }
   if (ev.type !== 'message' || ev.message?.type !== 'text') return [text('ตอนนี้โค้ชอ่านได้เฉพาะข้อความตัวอักษรครับ 🙏', MENU)]
+
+  // 🏁 เพิ่มงานวิ่ง + จัดโปรแกรม (สร้างแผนจาก LINE แล้วเว็บดึงไปด้วย)
+  {
+    const key = ukey(user, 'runsetup')
+    const r = await handleRunSetup({
+      ev,
+      msg,
+      client,
+      cfg,
+      today,
+      webUrl: WEB_URL,
+      loadRaces,
+      state: {
+        get: async () => ((await env.KV?.get(key, 'json')) as RunSetup | null) ?? null,
+        put: async (s) => void (await env.KV?.put(key, JSON.stringify(s), { expirationTtl: 3600 })),
+        clear: async () => void (await env.KV?.delete(key)),
+      },
+    })
+    if (r) return r
+  }
 
   if (/^(เชื่อม ?google|เชื่อมต่อ ?google|google|เชื่อม ?google ?health|connect google)$/i.test(msg)) {
     if (!googleCreds(env) || !env.KV) return [text('ฝั่งระบบยังไม่ได้ใส่ GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET — ทำตามขั้นตอนตั้งค่า Google Cloud ก่อนครับ')]
@@ -766,7 +803,9 @@ export default {
     if (payload.selftest) {
       const t0 = Date.now()
       try {
-        const msgs = await handle({ type: 'message', replyToken: 'selftest', source: { userId: payload.uid ?? env.LINE_USER_ID }, message: { type: 'text', text: payload.selftest } }, env, { sport: payload.sport })
+        const src = { userId: payload.uid ?? env.LINE_USER_ID }
+        const stEv = (payload.selftest.startsWith('pb:') ? { type: 'postback', replyToken: 'selftest', source: src, postback: { data: payload.selftest.slice(3) } } : { type: 'message', replyToken: 'selftest', source: src, message: { type: 'text', text: payload.selftest } }) as LineEvent
+        const msgs = await handle(stEv, env, { sport: payload.sport })
         const v = await fetch('https://api.line.me/v2/bot/message/validate/reply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}` },

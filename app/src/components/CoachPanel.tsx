@@ -5,6 +5,7 @@ import { IntervalsClient, EXT_PREFIX, runHrSettings } from '../coach/intervals'
 import { loadAndAnalyze, commitReport, answerQuestion, injuryNote } from '../coach/runner'
 import type { CoachData } from '../coach/runner'
 import { toIcuEvent } from '../coach/workoutText'
+import { planSlug } from '../coach/raceSetup'
 import { lightDot } from '../coach/engine'
 import { bpmRange } from '../coach/workoutText'
 import { Card, Field, NumInput, Stat, Toggle } from './ui'
@@ -41,7 +42,7 @@ const todayISO = () => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9ก-๙]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'plan'
+const slug = planSlug
 
 const STATUS: Record<DayRow['status'], [string, string]> = {
   done: ['✅', 'ครบ'],

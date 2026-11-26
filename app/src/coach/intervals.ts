@@ -68,6 +68,15 @@ export class IntervalsClient {
   deleteEvent(id: number) {
     return this.req<unknown>(`${this.a}/events/${id}`, { method: 'DELETE' })
   }
+  /** ลบหลายรายการในครั้งเดียว (PUT events/bulk-delete) — ถ้าใช้ไม่ได้ ลบทีละรายการ */
+  async deleteEvents(ids: number[]): Promise<void> {
+    if (!ids.length) return
+    try {
+      for (let i = 0; i < ids.length; i += 200) await this.req<unknown>(`${this.a}/events/bulk-delete`, { method: 'PUT', body: ids.slice(i, i + 200).map((id) => ({ id })) })
+    } catch {
+      for (const id of ids) await this.deleteEvent(id)
+    }
+  }
   /** สตรีมของกิจกรรม (เวลา/ระยะ/หัวใจ) — ใช้วิเคราะห์ split หลังแข่ง */
   async activityStreams(activityId: string, types = ['time', 'distance', 'heartrate']): Promise<Record<string, number[]>> {
     const raw = await this.req<{ type: string; data: (number | null)[] }[]>(`/activity/${encodeURIComponent(activityId)}/streams.json?types=${types.join(',')}`)

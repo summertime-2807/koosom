@@ -7,6 +7,7 @@ import { generateFlatRoute } from './engine/routeGen'
 import { sampleWaypoints } from './data/sampleRoute'
 import { getStorage } from './services/storage'
 import { newPlan, defaultTargetSec } from './services/planFactory'
+import { importLinePlans } from './services/lineSync'
 import { downloadFile } from './services/download'
 import { fmtClock, fmtHMS, fmtPace, fmtThaiDate, parseHM, uid } from './lib/time'
 import { Card, Stat, Toast } from './components/ui'
@@ -91,8 +92,27 @@ export default function App() {
       setPlans(list)
       setPlan(list.find((p) => p.id === activeId) ?? list[0])
       setCustomRaces(await storage.listCustomRaces())
+      // แผนที่สร้างจาก LINE → เพิ่มในเว็บให้ด้วย
+      try {
+        const got = await importLinePlans(list)
+        if (got.plans.length) {
+          for (const p of got.plans) await storage.savePlan(p)
+          if (got.races.length) {
+            const cur = await storage.listCustomRaces()
+            await storage.saveCustomRaces([...cur.filter((r) => !got.races.some((x) => x.id === r.id)), ...got.races])
+            setCustomRaces(await storage.listCustomRaces())
+          }
+          const newest = got.plans.at(-1)!
+          await storage.setActivePlanId(newest.id)
+          setPlans(await storage.listPlans())
+          setPlan(newest)
+          toast(`เพิ่มแผน "${newest.meta.name}" จาก LINE แล้ว`)
+        }
+      } catch {
+        /* ไม่ได้เชื่อม Intervals ในเครื่องนี้ หรือออฟไลน์ */
+      }
     })()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── autosave (debounce) ──
   useEffect(() => {
