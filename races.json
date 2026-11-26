@@ -1,7 +1,7 @@
 {
  "source": "race.thai.run",
- "updatedAt": "2026-11-23T16:05:24.200Z",
- "count": 74,
+ "updatedAt": "2026-11-26T02:52:55.975Z",
+ "count": 73,
  "races": [
   {
    "id": "tr_hearttoheartrun2026",
@@ -14,7 +14,7 @@
    ],
    "source": "race.thai.run",
    "url": "https://race.thai.run/hearttoheartrun2026",
-   "regOpen": true
+   "regOpen": false
   },
   {
    "id": "tr_supercchefrun5",
@@ -115,7 +115,7 @@
    ],
    "source": "race.thai.run",
    "url": "https://race.thai.run/satitmaechaemtrail2026",
-   "regOpen": true
+   "regOpen": false
   },
   {
    "id": "tr_vientianemarathon2026",
@@ -279,22 +279,6 @@
    ],
    "source": "race.thai.run",
    "url": "https://race.thai.run/bs21-charity-2026",
-   "regOpen": false
-  },
-  {
-   "id": "tr_bs21-foreigner-2026",
-   "name": "Bangsaen21-2026 (International Runner & Semi-Elite)",
-   "date": "2026-12-20",
-   "location": "Chon Buri",
-   "organizer": "MICE and Communications",
-   "distancesKm": [
-    5,
-    10,
-    21.1,
-    42.195
-   ],
-   "source": "race.thai.run",
-   "url": "https://race.thai.run/bs21-foreigner-2026",
    "regOpen": false
   },
   {
