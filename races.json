@@ -1,7 +1,7 @@
 {
  "source": "race.thai.run",
- "updatedAt": "2026-11-26T02:52:55.975Z",
- "count": 73,
+ "updatedAt": "2026-11-28T02:45:12.543Z",
+ "count": 74,
  "races": [
   {
    "id": "tr_hearttoheartrun2026",
@@ -465,6 +465,20 @@
    "source": "race.thai.run",
    "url": "https://race.thai.run/tvacharityrunning2026",
    "regOpen": true
+  },
+  {
+   "id": "tr_ultramanherorun",
+   "name": "Ultraman Hero Run Thailand",
+   "date": "2026-12-20",
+   "location": "Kanchanaburi",
+   "organizer": "FUNTERTAINMENT Co.,Ltd.",
+   "distancesKm": [
+    5,
+    10
+   ],
+   "source": "race.thai.run",
+   "url": "https://race.thai.run/ultramanherorun",
+   "regOpen": false
   },
   {
    "id": "tr_chiangmaimarathon2026",
